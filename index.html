@@ -176,6 +176,7 @@ body{overflow:visible!important;background:#fff}
 body>*:not(#printArea){display:none!important}
 #printArea{display:block!important}
 #printArea .ticket{max-width:none;width:100%;padding:0}
+html,body,#root{height:auto!important;min-height:0!important}
 }
 .cartclose{display:none}
 @media(max-width:1000px){.cartclose{display:inline-flex}}
@@ -229,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-22 b';
+const APP_VER='2026-11-22 d';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -359,6 +360,7 @@ function ticketText(v,pago){
   const R=ticketModel(v,pago).filter(r=>r.t!=='logo'),o=[];
   R.forEach(r=>{if(r.t==='c')o.push(r.big?`*${r.text}*`:r.text);else if(r.t==='hr')o.push('--------------------------');else if(r.t==='kv')o.push(r.big?`*${r.a}: ${r.b}*`:`${r.a}: ${r.b}`);else if(r.t==='l')o.push(r.text);else if(r.t==='item')o.push(`${r.name}\n   ${r.det} = ${r.imp}`)});
   return o.join('\n')}
+async function printImage(R){const c=cfg();if(c.papel==='carta')return;const cv=await ticketCanvas(R);$('#pageStyle').textContent=`@page{size:${c.papel==='80'?'80mm':'58mm'} auto;margin:0}`;const im=new Image();im.style.cssText='width:100%;display:block';im.src=cv.toDataURL('image/png');try{await im.decode()}catch(e){}const pa=$('#printArea');pa.innerHTML='';pa.appendChild(im);requestAnimationFrame(()=>setTimeout(()=>window.print(),350))}
 function printHTML(html){const c=cfg();$('#pageStyle').textContent=c.papel==='carta'?'@page{size:letter;margin:14mm}':`@page{size:${c.papel==='58'?'58mm':'80mm'} auto;margin:2mm}`;$('#printArea').innerHTML=`<div class="ticket w${esc(c.papel)}">${html}</div>`;setTimeout(()=>window.print(),60)}
 function waNumber(t){let d=String(t||'').replace(/\D/g,'');if(d.length===10)d=cfg().pais+d;return d}
 function shareDoc(title,html,text,{tel='',email='',subject='',R=null}={}){
@@ -366,7 +368,7 @@ function shareDoc(title,html,text,{tel='',email='',subject='',R=null}={}){
   <div class="fgrid"><div class="field"><label>WhatsApp (número)</label><input id="shw" inputmode="tel" value="${esc(tel)}" placeholder="10 dígitos"></div><div class="field"><label>Correo electrónico</label><input id="shm" type="email" value="${esc(email)}" placeholder="cliente@correo.com"></div></div>
   <div class="row wrap"><button class="btn" data-do="print">${ic('print')} Imprimir</button><button class="btn" style="background:#25d366;color:#04210f;border-color:#25d366" data-do="wa">${ic('msg')} WhatsApp</button><button class="btn" data-do="mail">${ic('mail')} Correo</button>${navigator.share?`<button class="btn" data-do="share">${ic('share')} Compartir</button>`:''}<button class="btn" data-do="copy">${ic('copy')} Copiar</button>${R?`<button class="btn" data-do="img">${ic('down')} Imagen (app de la impresora)</button>${navigator.bluetooth?`<button class="btn acc" data-do="bt">${ic('print')} Imprimir por Bluetooth</button>`:''}`:''}</div>
   <div class="mf"><button class="btn pri" data-close>Listo</button></div>`,{wide:false});
-  m.do.print=()=>printHTML(html);
+  m.do.print=()=>R&&cfg().papel!=='carta'?printImage(R):printHTML(html);
   m.do.wa=()=>{const n=waNumber(m.q('#shw').value);if(n.length<10){toast('Escribe el número de WhatsApp','warn');return}window.open(`https://wa.me/${n}?text=${encodeURIComponent(text)}`,'_blank')};
   m.do.mail=()=>{const e=m.q('#shm').value.trim();window.location.href=`mailto:${encodeURIComponent(e)}?subject=${encodeURIComponent(subject||title)}&body=${encodeURIComponent(text.replace(/\*/g,''))}`};
   m.do.share=()=>navigator.share({title:subject||title,text}).catch(()=>{});
@@ -383,12 +385,12 @@ function ticketLayout(R,W){
   const font=(s,b)=>`${b?'bold ':''}${s}px "Courier New", monospace`;
   const wrap=(t,f)=>{c.font=f;const out=[];let cur='';for(const w of String(t).split(' ')){const x=cur?cur+' '+w:w;if(c.measureText(x).width>W-8&&cur){out.push(cur);cur=w}else cur=x}if(cur)out.push(cur);return out};
   for(const r of R){
-    if(r.t==='logo'){ops.push({k:'logo',src:r.src,y});y+=72}
+    if(r.t==='logo'){ops.push({k:'logo',src:r.src,y});y+=W>384?120:108}
     else if(r.t==='c'){const sz=r.big?big:fs,f=font(sz,r.big);wrap(r.text,f).forEach(l=>{ops.push({k:'t',x:W/2,y,txt:l,f,a:'center'});y+=sz+6})}
     else if(r.t==='hr'){ops.push({k:'hr',y:y+LH/2-1});y+=LH}
-    else if(r.t==='kv'){const f=font(r.big?fs+2:fs,r.big);c.font=f;const bw=c.measureText(r.b).width,a=String(r.a);if(c.measureText(a).width>W-bw-16){wrap(a,f).forEach(l=>{ops.push({k:'t',x:4,y,txt:l,f,a:'left'});y+=LH});ops.push({k:'t',x:W-4,y,txt:r.b,f,a:'right'});y+=LH+(r.big?2:0)}else{ops.push({k:'t',x:4,y,txt:a,f,a:'left'},{k:'t',x:W-4,y,txt:r.b,f,a:'right'});y+=LH+(r.big?2:0)}}
-    else if(r.t==='l'){const m=String(r.text).match(/^(.*?)\s{3,}(\S+)$/),f=font(fs,false);if(m){ops.push({k:'t',x:4,y,txt:m[1],f,a:'left'},{k:'t',x:W-4,y,txt:m[2],f,a:'right'})}else ops.push({k:'t',x:4,y,txt:r.text,f,a:'left'});y+=LH}
-    else if(r.t==='item'){const f=font(fs,true);wrap(r.name,f).forEach(l=>{ops.push({k:'t',x:4,y,txt:l,f,a:'left'});y+=LH});const f2=font(fs,false);ops.push({k:'t',x:12,y,txt:r.det,f:f2,a:'left'},{k:'t',x:W-4,y,txt:r.imp,f:f2,a:'right'});y+=LH}
+    else if(r.t==='kv'){const f=font(r.big?fs+2:fs,r.big);c.font=f;const bw=c.measureText(r.b).width,a=String(r.a);if(c.measureText(a).width>W-bw-16){wrap(a,f).forEach(l=>{ops.push({k:'t',x:4,y,txt:l,f,a:'left'});y+=LH});let vs=r.big?fs+2:fs;c.font=font(vs,r.big);while(c.measureText(r.b).width>W-8&&vs>12){vs--;c.font=font(vs,r.big)}ops.push({k:'t',x:W-4,y,txt:r.b,f:font(vs,r.big),a:'right'});y+=LH+(r.big?2:0)}else{ops.push({k:'t',x:4,y,txt:a,f,a:'left'},{k:'t',x:W-4,y,txt:r.b,f,a:'right'});y+=LH+(r.big?2:0)}}
+    else if(r.t==='l'){const m=String(r.text).match(/^(.*?)\s{3,}(\S+)$/);let f=font(fs,false);if(m){let hs=fs;c.font=f;while(c.measureText(m[1]).width+c.measureText(m[2]).width+16>W&&hs>12){hs--;f=font(hs,false);c.font=f}ops.push({k:'t',x:4,y,txt:m[1],f,a:'left'},{k:'t',x:W-4,y,txt:m[2],f,a:'right'})}else ops.push({k:'t',x:4,y,txt:r.text,f,a:'left'});y+=LH}
+    else if(r.t==='item'){const f=font(fs,true);wrap(r.name,f).forEach(l=>{ops.push({k:'t',x:4,y,txt:l,f,a:'left'});y+=LH});const f2=font(fs,false);c.font=f2;if(c.measureText(r.det).width+c.measureText(r.imp).width+24>W){ops.push({k:'t',x:12,y,txt:r.det,f:f2,a:'left'});y+=LH;ops.push({k:'t',x:W-4,y,txt:r.imp,f:f2,a:'right'});y+=LH}else{ops.push({k:'t',x:12,y,txt:r.det,f:f2,a:'left'},{k:'t',x:W-4,y,txt:r.imp,f:f2,a:'right'});y+=LH}}
   }
   return{ops,H:y+10}}
 async function ticketCanvas(R){
@@ -397,7 +399,7 @@ async function ticketCanvas(R){
   for(const o of ops){
     if(o.k==='t'){x.font=o.f;x.textAlign=o.a;x.fillText(o.txt,o.x,o.y)}
     else if(o.k==='hr'){for(let i=0;i<W;i+=10)x.fillRect(i,o.y,6,2)}
-    else if(o.k==='logo'){try{const im=await loadImg(o.src),s=Math.min(64/im.height,W*.6/im.width),w=im.width*s,h=im.height*s;x.drawImage(im,(W-w)/2,o.y,w,h)}catch{}}}
+    else if(o.k==='logo'){try{const im=await loadImg(o.src),s=Math.min((W>384?110:100)/im.height,W*.92/im.width),w=im.width*s,h=im.height*s;x.drawImage(im,(W-w)/2,o.y,w,h)}catch{}}}
   return cv}
 async function shareImage(R,name){
   const cv=await ticketCanvas(R),blob=await new Promise(r=>cv.toBlob(r,'image/png')),file=new File([blob],name+'.png',{type:'image/png'});
@@ -675,8 +677,8 @@ function afterSale({v,pago},paid){
   ${cam>0?`<div class="card flat c"><div class="mut sm">Entrega de cambio</div><div class="num b" style="font-size:44px;color:var(--pri)">${money(cam)}</div></div>`:''}
   <div class="row wrap"><button class="btn sp" data-do="pr">${ic('print')} Imprimir</button><button class="btn sp" data-do="sh">${ic('share')} WhatsApp / correo</button></div>
   <button class="btn pri lg block" data-do="nx">${ic('plus')} Nueva venta</button>`,{sticky:true,onClose:()=>{if(view==='pos')setTimeout(()=>$('#pq')&&window.matchMedia('(min-width:1001px)').matches&&$('#pq').focus(),50)}});
-  m.do.pr=()=>printHTML(ticketHTML(v,null));m.do.sh=()=>shareTicket(v,null);m.do.nx=()=>m.close();
-  if(cfg().autoprint==1)setTimeout(()=>printHTML(ticketHTML(v,null)),200)}
+  m.do.pr=()=>cfg().papel!=='carta'?printImage(ticketModel(v,null)):printHTML(ticketHTML(v,null));m.do.sh=()=>shareTicket(v,null);m.do.nx=()=>m.close();
+  if(cfg().autoprint==1)setTimeout(()=>cfg().papel!=='carta'?printImage(ticketModel(v,null)):printHTML(ticketHTML(v,null)),200)}
 function reopenSale(id){const v=get('ventas',id);if(!v)return;
   if(cart.items.length&&!confirm('El carrito actual tiene productos. ¿Reemplazarlo con la venta '+v.folio+'?'))return;
   cart={items:v.items.filter(i=>get('productos',i.pid)).map(i=>({pid:i.pid,qty:i.qty,pm:Math.abs(i.precio-i.lista)>0.001?i.precio:null})),cliente_id:v.cliente_id||'',esquema:v.esquema||'menudeo',total_neg:+v.descuento?v.total:null,venta_id:v.id};go('pos')}
