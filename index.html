@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-23 n';
+const APP_VER='2026-11-23 o';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -1170,7 +1170,7 @@ function parseCSV(t){
     else if(ch==='"')q=true;else if(ch===d){row.push(cur);cur=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(x=>x!==''))rows.push(row);row=[]}else cur+=ch}
   row.push(cur);if(row.some(x=>x!==''))rows.push(row);return rows}
 const ALIAS={
-  productos:{codigo:['codigo','codigo de barras','barras','sku','cod','ean'],nombre:['nombre','producto','descripcion','articulo'],categoria:['categoria','depto','departamento','linea','familia'],unidad:['unidad','um','medida'],granel:['granel','a granel'],costo:['costo','precio compra','precio de compra','costo unitario'],precio:['precio','precio venta','precio de venta','precio efectivo','menudeo','publico','precio publico','precio1'],mayoreo:['mayoreo','precio mayoreo','precio2'],min_mayoreo:['min mayoreo','min_mayoreo','minimo mayoreo','mayoreo desde','cantidad mayoreo'],stock_min:['stock min','stock_min','stock minimo','minimo','existencia minima'],stock_inicial:['stock','existencia','existencias','cantidad','inventario','stock inicial','stock_inicial'],proveedor:['proveedor'],imagen:['imagen','foto','url imagen','url']},
+  productos:{codigo:['codigo','codigo de barras','barras','sku','cod','ean'],nombre:['nombre','producto','descripcion','articulo'],categoria:['categoria','depto','departamento','linea','familia'],unidad:['unidad','um','medida'],granel:['granel','a granel'],costo:['costo','precio compra','precio de compra','costo unitario'],precio:['precio','precio venta','precio de venta','precio efectivo','menudeo','publico','precio publico','precio1'],mayoreo:['mayoreo','precio mayoreo','precio2'],min_mayoreo:['min mayoreo','min_mayoreo','minimo mayoreo','mayoreo desde','cantidad mayoreo'],stock_min:['stock min','stock_min','stock minimo','minimo','existencia minima'],stock_inicial:['stock','existencia','existencias','cantidad','inventario','stock inicial','stock_inicial'],proveedor:['proveedor'],pres_nombre:['presentacion','presentacion de compra','se compra por'],pres_cant:['contiene','contenido','piezas por caja','kg por bulto'],imagen:['imagen','foto','url imagen','url']},
   clientes:{nombre:['nombre','cliente','negocio','razon social'],telefono:['telefono','tel','celular','whatsapp','movil'],email:['email','correo','correo electronico','e-mail'],direccion:['direccion','domicilio','calle'],lat:['lat','latitud'],lng:['lng','lon','long','longitud'],tipo_precio:['tipo precio','tipo_precio','tipo de precio','precio'],limite_credito:['limite credito','limite_credito','limite','credito'],dia_visita:['dia visita','dia_visita','dia de visita','visita'],nota:['nota','notas','observaciones']},
   proveedores:{nombre:['nombre','proveedor','empresa','razon social'],contacto:['contacto','vendedor','representante'],telefono:['telefono','tel','celular','whatsapp'],email:['email','correo'],direccion:['direccion','domicilio'],nota:['nota','notas']}};
 const truthy=v=>['si','1','true','x','yes','s','verdadero'].includes(norm(v));
@@ -1196,6 +1196,7 @@ function runImport(kind,rows,map){
       p.nombre=nombre;if(cod!==undefined&&cod!=='')p.codigo=cod;
       for(const f of['categoria','unidad','imagen']){const v=val(row,f);if(v)p[f]=v}
       for(const f of['costo','precio','mayoreo','min_mayoreo','stock_min']){const v=val(row,f);if(v!==undefined&&v!=='')p[f]=num(v)}
+      {const pn=val(row,'pres_nombre'),pc=num(val(row,'pres_cant')||0);if(pn!==undefined||pc){if(pn&&pc>1){p.pres_nombre=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();p.pres_cant=pc}else if(pn===''&&!pc){p.pres_nombre='';p.pres_cant=0}}}
       const g=val(row,'granel');if(g!==undefined&&g!=='')p.granel=truthy(g)?1:0;
       const si=val(row,'stock_inicial');if(isNew&&si!==undefined&&si!==''&&num(si)>0)p.stock_inicial=num(si);
       save('productos',p);if(isNew&&p.stock_inicial)ensureInicial(p);
