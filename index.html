@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-23 o';
+const APP_VER='2026-11-24 q';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -570,7 +570,7 @@ function renderCart(){
   el.innerHTML=`<div class="cart-h"><div class="row"><button class="btn sm sp" data-a="cli" style="justify-content:flex-start">${ic('user')}<span class="ell">${cl?esc(cl.nombre):'Mostrador (sin cliente)'}</span></button><div class="seg"><button class="${cart.esquema==='menudeo'?'on':''}" data-a="esq" data-v="menudeo">Menudeo</button><button class="${cart.esquema==='mayoreo'?'on':''}" data-a="esq" data-v="mayoreo">Mayoreo</button></div><button class="btn sm ghost cartclose" data-a="hide" aria-label="Cerrar carrito">${ic('x')}</button></div>
   ${edit?`<div class="hint">Editando ${esc(edit.folio)} · ya pagado ${money(pagadoDe(edit.id))}. Agrega productos y guarda.</div>`:''}</div>
   <div class="cart-l">${c.lines.length?c.lines.map((l,i)=>{const neg=Math.abs(l.precio-l.lista)>0.001,gr=+l.p.granel;return`<div class="line"><div class="t"><div class="n">${esc(l.p.nombre)}${gr?' <span class="badge acc">granel</span>':''}<div class="xs mut">Lista ${money(l.lista)} / ${esc(l.p.unidad||'pza')}${l.it.qty>stockOf(l.p.id)?` · <span style="color:var(--bad)">existencia ${qf(stockOf(l.p.id))}</span>`:''}</div></div><button class="btn sm ghost" data-a="rm" data-i="${i}" aria-label="Quitar">${ic('trash')}</button></div>
-  <div class="q"><button class="btn sm" data-a="dec" data-i="${i}">${ic('minus')}</button><input type="number" step="${gr?'any':'1'}" inputmode="decimal" value="${qf(l.it.qty)}" data-ci="qty" data-i="${i}" aria-label="Cantidad"><button class="btn sm" data-a="inc" data-i="${i}">${ic('plus')}</button>${presOf(l.p)?`<button class="btn sm acc" data-a="pres" data-i="${i}" title="Agregar 1 ${esc(presOf(l.p).n)}">+${esc(presOf(l.p).n)}</button>`:''}<span class="xs mut">×</span><input class="pp ${neg?'neg':''}" type="number" step="any" inputmode="decimal" value="${l.precio}" data-ci="pr" data-i="${i}" ${ep?'':'disabled'} aria-label="Precio unitario"><span class="tot num">${money(l.importe)}</span></div>${neg?`<div class="xs" style="color:var(--warn)">Precio negociado (lista ${money(l.lista)})</div>`:''}</div>`}).join(''):`<div class="empty">${ic('cart')}<div style="margin-top:6px">Toca un producto o escanea su código para agregarlo.</div></div>`}</div>
+  <div class="q"><button class="btn sm" data-a="dec" data-i="${i}">${ic('minus')}</button><input type="number" step="${gr?'any':'1'}" inputmode="decimal" value="${qf(l.it.qty)}" data-ci="qty" data-i="${i}" aria-label="Cantidad"><button class="btn sm" data-a="inc" data-i="${i}">${ic('plus')}</button>${presOf(l.p)?`<button class="btn sm acc" data-a="pres" data-i="${i}" title="Completar ${esc(presOf(l.p).n)} (${qf(presOf(l.p).c)})">${esc(presOf(l.p).n)}</button>`:''}${presOf(l.p)?`<button class="btn sm" data-a="presed" data-i="${i}" title="Cantidad en ${esc(presOf(l.p).n.toLowerCase())}s y piezas">${ic('edit')}</button>`:''}<span class="xs mut">×</span><input class="pp ${neg?'neg':''}" type="number" step="any" inputmode="decimal" value="${l.precio}" data-ci="pr" data-i="${i}" ${ep?'':'disabled'} aria-label="Precio unitario"><span class="tot num">${money(l.importe)}</span></div>${neg?`<div class="xs" style="color:var(--warn)">Precio negociado (lista ${money(l.lista)})</div>`:''}</div>`}).join(''):`<div class="empty">${ic('cart')}<div style="margin-top:6px">Toca un producto o escanea su código para agregarlo.</div></div>`}</div>
   <div class="cart-f"><div class="tl sm"><span>${nitems} partida${nitems===1?'':'s'} · ${qf(units)} unid.</span><span class="num">Subtotal ${money(c.subtotal)}</span></div>
   <div class="tl"><span class="sm">Total negociado</span><input id="tneg" type="number" step="any" inputmode="decimal" placeholder="${c.subtotal}" value="${cart.total_neg??''}" style="width:130px;text-align:right" ${ep?'':'disabled'}></div>
   ${c.descuento?`<div class="tl sm" style="color:var(--warn)"><span>${c.descuento>0?'Descuento':'Ajuste'}</span><b class="num">${money(-c.descuento)}</b></div>`:''}
@@ -598,7 +598,11 @@ V.pos=()=>{
     else if(a==='esq'){cart.esquema=b.dataset.v;cart.items.forEach(x=>x.pm=null);renderCart();renderCatalog()}
     else if(a==='cli')pickCliente(c=>{cart.cliente_id=c?c.id:'';if(c&&c.tipo_precio==='mayoreo'&&cart.esquema!=='mayoreo'){cart.esquema='mayoreo';renderCatalog()}renderCart()});
     else if(a==='rm'){cart.items.splice(i,1);renderCart()}
-    else if(a==='pres'){const it=cart.items[i],pr=presOf(get('productos',it.pid));if(pr){it.qty=Math.round((it.qty+pr.c)*1000)/1000;renderCart()}}
+    else if(a==='presed'){const it=cart.items[i],p=get('productos',it.pid),pr=presOf(p);if(pr){const cj=Math.floor(it.qty/pr.c+1e-9),rs=Math.round((it.qty-cj*pr.c)*1000)/1000;
+      const m=modal(`${mhead('Cantidad · '+esc(p.nombre))}<div class="fgrid"><div class="field"><label>${esc(pr.n)}s completos (puede ser 1.5)</label><input id="pe_c" type="number" step="any" inputmode="decimal" value="${cj}"></div><div class="field"><label>+ ${esc(p.unidad||'pza')} sueltos</label><input id="pe_r" type="number" step="any" inputmode="decimal" value="${rs}"></div></div><div class="card flat"><div class="tl"><span>Total</span><b class="num" id="pe_t"></b></div></div><div class="mf"><button class="btn" data-close>Cancelar</button><button class="btn pri" data-do="ok">Aceptar</button></div>`);
+      const tot=()=>Math.round((num(m.q('#pe_c').value)*pr.c+num(m.q('#pe_r').value))*1000)/1000;const sh=()=>m.q('#pe_t').textContent=qf(tot())+' '+(p.unidad||'');m.el.addEventListener('input',sh);sh();
+      m.do.ok=()=>{const q=tot();if(q<=0){m.close();return}it.qty=q;m.close();renderCart()}}}
+    else if(a==='pres'){const it=cart.items[i],pr=presOf(get('productos',it.pid));if(pr){it.qty=Math.round((Math.floor(it.qty/pr.c+1e-9)+1)*pr.c*1000)/1000;renderCart()}}
     else if(a==='inc'||a==='dec'){const it=cart.items[i],p=get('productos',it.pid),st=+p.granel?0.25:1;it.qty=Math.max(0,Math.round((it.qty+(a==='inc'?st:-st))*1000)/1000);if(it.qty<=0)cart.items.splice(i,1);renderCart()}
     else if(a==='clear'){ask('¿Vaciar el carrito?','Vaciar',true).then(y=>{if(y){resetCart();renderCart();renderCatalog()}})}
     else if(a==='hold')holdSale();
@@ -606,7 +610,7 @@ V.pos=()=>{
   cr.onchange=e=>{const t=e.target;if(t.id==='tneg'){const v=t.value.trim();cart.total_neg=v===''?null:Math.max(0,num(v));renderCart();return}
     const i=+t.dataset.i,it=cart.items[i];if(!it)return;
     if(t.dataset.ci==='qty'){const q=Math.round(num(t.value)*1000)/1000;if(q<=0)cart.items.splice(i,1);else it.qty=q}
-    else if(t.dataset.ci==='pr'){const p=get('productos',it.pid)||{};const v=num(t.value);it.pm=Math.abs(v-priceFor(p,it.qty,cart.esquema))<0.001?null:v}
+    else if(t.dataset.ci==='pr'){const p=get('productos',it.pid)||{};let v=num(t.value);if(+p.costo>0&&v<=+p.costo){if(!isAdmin()){toast(`No se puede vender por debajo del costo (${money(p.costo)})`,'bad');v=priceFor(p,it.qty,cart.esquema)}else toast(`Ojo: ${money(v)} está por debajo o igual al costo (${money(p.costo)})`,'warn')}it.pm=Math.abs(v-priceFor(p,it.qty,cart.esquema))<0.001?null:v}
     renderCart()};
   if(window.matchMedia('(min-width:1001px)').matches)setTimeout(()=>pq.focus(),50);
 };
@@ -744,10 +748,10 @@ V.productos=arg=>{
   const ed=canEditCat();
   $('#main').innerHTML=`<div class="hd"><h2>Productos <span class="mut sm" id="pcount"></span></h2>${ed?`<button class="btn" id="pimp">${ic('down')} Importar</button><button class="btn pri" id="pnew">${ic('plus')} Nuevo</button>`:''}</div>
   <div class="sticky-search" style="margin-bottom:10px"><input id="pq3" placeholder="Buscar por nombre, código o categoría…" value="${esc(prodQ)}" autocomplete="off"><button class="btn" id="pscan3">${ic('scan')}</button></div>
-  <div class="seg" id="pfil" style="margin-bottom:12px">${[['todos','Todos'],['bajo','Stock bajo'],['agotado','Agotados'],['granel','A granel'],['inactivo','Inactivos']].map(([k,l])=>`<button data-f="${k}" class="${prodF===k?'on':''}">${l}</button>`).join('')}</div><div class="list" id="plist"></div>`;
+  <div class="seg" id="pfil" style="margin-bottom:12px">${[['todos','Todos'],['bajo','Stock bajo'],['agotado','Agotados'],['riesgo','Revisar precios'],['granel','A granel'],['inactivo','Inactivos']].map(([k,l])=>`<button data-f="${k}" class="${prodF===k?'on':''}">${l}</button>`).join('')}</div><div class="list" id="plist"></div>`;
   const draw=()=>{const toks=norm(prodQ).split(/\s+/).filter(Boolean);
     let a=all('productos').filter(p=>(!toks.length||toks.every(t=>norm(p.nombre+' '+(p.codigo||'')+' '+(p.categoria||'')).includes(t))));
-    a=a.filter(p=>prodF==='inactivo'?p.activo===0:p.activo!==0&&(prodF==='todos'||(prodF==='granel'?+p.granel:stStatus(p)===prodF)));
+    a=a.filter(p=>prodF==='inactivo'?p.activo===0:p.activo!==0&&(prodF==='todos'||(prodF==='granel'?+p.granel:prodF==='riesgo'?riesgoPrecio(p):stStatus(p)===prodF)));
     a.sort((x,y)=>x.nombre.localeCompare(y.nombre));$('#pcount').textContent='('+a.length+')';
     $('#plist').innerHTML=a.slice(0,150).map(p=>{const mj=mejorPrecio(p.id);return`<button class="item" data-id="${p.id}">${avatar(p)}<div class="sp"><div class="b ell">${esc(p.nombre)} ${+p.granel?'<span class="badge acc">granel</span>':''}</div><div class="xs mut ell">${esc(p.codigo||'sin código')}${p.categoria?' · '+esc(p.categoria):''}${mj?` · mejor costo ${money(mj.costo)} (${esc(provName(mj.proveedor_id))})`:''}</div></div><div class="r"><div class="b num">${money(p.precio)}</div>${+p.mayoreo?`<div class="xs mut num">may. ${money(p.mayoreo)}</div>`:''}</div><div class="r" style="min-width:74px"><div class="b num">${qf(stockOf(p.id))}</div><div class="xs mut">${esc(p.unidad||'')}</div>${stBadge(p)}</div></button>`}).join('')||`<div class="empty">No hay productos${prodQ?' con esa búsqueda':' todavía'}.${ed?' Toca “Nuevo” o importa tu lista.':''}</div>`};
   draw();
@@ -797,6 +801,10 @@ function productForm(id,defaults={}){
     const nombre=m.q('#f_nombre').value.trim(),codigo=m.q('#f_codigo').value.trim();
     if(!nombre){toast('Escribe el nombre','warn');return}
     if(codigo&&all('productos').some(x=>x.id!==(old&&old.id)&&String(x.codigo)===codigo)){toast('Ya existe otro producto con ese código','bad');return}
+    {const c=num(m.q('#f_costo').value),mg=num(m.q('#f_may').value),pr=num(m.q('#f_precio').value);
+      if(c>0){if(mg>0&&mg<=c){toast(`El precio de mayoreo (${money(mg)}) debe ser mayor al costo (${money(c)})`,'bad');return}
+        if(pr>0&&pr<=c){toast(`El precio de venta (${money(pr)}) debe ser mayor al costo (${money(c)})`,'bad');return}}
+      if(mg>0&&pr>0&&mg>pr){toast('El mayoreo no puede ser más caro que el precio normal','bad');return}}
     const rec=Object.assign(old||{id:uid()},{codigo,nombre,categoria:m.q('#f_cat').value.trim(),unidad:m.q('#f_unidad').value,granel:m.q('#f_granel').checked?1:0,costo:num(m.q('#f_costo').value),precio:num(m.q('#f_precio').value),mayoreo:num(m.q('#f_may').value),min_mayoreo:num(m.q('#f_minmay').value),pres_nombre:(m.q('#f_pn').value&&num(m.q('#f_pc').value)>1?m.q('#f_pn').value:''),pres_cant:(m.q('#f_pn').value&&num(m.q('#f_pc').value)>1?num(m.q('#f_pc').value):0),stock_min:num(m.q('#f_min').value),activo:m.q('#f_act').checked?1:0,imagen:img.value});
     if(!old){const ini=num(m.q('#f_ini').value);if(ini>0)rec.stock_inicial=ini}
     save('productos',rec);if(!old&&rec.stock_inicial)ensureInicial(rec);
@@ -900,6 +908,7 @@ V.compras=()=>{
   $('#main').innerHTML=`<div class="hd"><h2>Compras</h2><div class="seg" id="ctab"><button data-t="nueva" class="${compTab==='nueva'?'on':''}">Nueva compra</button><button data-t="hist" class="${compTab==='hist'?'on':''}">Historial</button></div></div><div id="cbody"></div>`;
   $('#ctab').onclick=e=>{const b=e.target.closest('[data-t]');if(b){compTab=b.dataset.t;V.compras()}};
   compTab==='nueva'?compraNueva():compraHist()};
+const riesgoPrecio=p=>+p.costo>0&&((+p.mayoreo>0&&+p.mayoreo<=+p.costo)||(+p.precio>0&&+p.precio<=+p.costo)||(+p.precio>0&&+p.mayoreo>+p.precio));
 const presOf=p=>p&&p.pres_nombre&&+p.pres_cant>1?{n:p.pres_nombre,c:+p.pres_cant}:null;
 const lf=l=>{const pr=presOf(get('productos',l.pid));return l.mode==='pres'&&pr?pr.c:1};
 const lq=l=>Math.round(l.qty*lf(l)*1000)/1000;
@@ -915,6 +924,26 @@ function groupsHTML(){const gr={};draft.lines.filter(l=>l.qty>0).forEach(l=>(gr[
 function sendPedido(k){const v=get('proveedores',k),arr=draft.lines.filter(l=>l.qty>0&&l.prov===k);if(!v||!arr.length)return;const tot=r2(sumBy(arr,limp));
   const text=`*Pedido · ${cfg().negocio}*\nPara: ${v.nombre}\n\n${arr.map(l=>lineTxt(l,true)).join('\n')}\n\nTotal estimado: ${money(tot)}\nGracias.`;
   shareDoc('Pedido a '+v.nombre,`<div style="padding:10px;white-space:pre-wrap;font-size:14px">${esc(text.replace(/\*/g,''))}</div>`,text,{tel:v.telefono||'',email:v.email||'',subject:'Pedido · '+cfg().negocio})}
+function vendidos30(){const d=new Date();d.setDate(d.getDate()-30);const c=dayStr(d),o={};all('ventas').forEach(v=>{if(v.cancelada||(v.dia||'')<c)return;(v.items||[]).forEach(i=>{o[i.pid]=(o[i.pid]||0)+(+i.qty||0)})});return o}
+function porProveedor(){
+  const provs=all('proveedores').sort((a,b)=>a.nombre.localeCompare(b.nombre));if(!provs.length){toast('Primero registra proveedores','warn');return}
+  const vend=vendidos30();let pv=(draft.lines.find(l=>l.prov)||{}).prov||provs[0].id,q='',sel=new Set();
+  const data=()=>{const m=new Map();
+    all('precios_prov').filter(x=>x.proveedor_id===pv&&+x.costo>0).forEach(x=>m.set(x.producto_id,{costo:+x.costo,fecha:x.fecha,ult:null}));
+    all('compras').filter(c=>c.proveedor_id===pv).sort((a,b)=>a.fecha<b.fecha?-1:1).forEach(c=>(c.items||[]).forEach(i=>{const e=m.get(i.pid)||{costo:+i.costo,fecha:c.dia,ult:null};e.ult={q:i.qty,f:c.dia,pres:i.pres};if(!m.has(i.pid))m.set(i.pid,e)}));
+    return[...m.entries()].map(([pid,e])=>{const p=get('productos',pid);return p&&p.activo!==0?{p,e,st:stockOf(pid),v:vend[pid]||0}:null}).filter(Boolean)};
+  const m=modal(`${mhead('Comprar por proveedor')}<div class="field"><label>Proveedor</label><select id="pp_v">${provs.map(v=>`<option value="${v.id}" ${v.id===pv?'selected':''}>${esc(v.nombre)}</option>`).join('')}</select></div><input id="pp_q" type="search" placeholder="Buscar producto…" style="margin-bottom:8px"><div class="xs mut" style="margin-bottom:6px">Salen sus productos con precio y lo que ya le has comprado. Primero los que se están acabando, luego los que más vendes. Marca los que quieras pedir.</div><div class="list" id="pp_l" style="max-height:48dvh;overflow:auto"></div><div class="mf"><button class="btn" data-close>Cancelar</button><button class="btn pri" data-do="add" id="pp_add">Agregar a la compra</button></div>`,{wide:true,sticky:true});
+  const sugq=(p,st,v)=>{const need=Math.max(minOf(p)*2,v)-st;return need>0?Math.ceil(need):1};
+  const draw=()=>{const d=data().filter(x=>!q||norm(x.p.nombre).includes(norm(q))).sort((a,b)=>(stStatus(a.p)==='ok')-(stStatus(b.p)==='ok')||b.v-a.v||a.p.nombre.localeCompare(b.p.nombre));
+    m.q('#pp_l').innerHTML=d.map(({p,e,st,v})=>{const s2=stStatus(p),pr=presOf(p),inl=draft.lines.some(l=>l.pid===p.id);return`<label class="item" style="cursor:pointer"><input type="checkbox" data-id="${p.id}" ${sel.has(p.id)?'checked':''} ${inl?'disabled':''}><div class="sp"><div class="b ell">${esc(p.nombre)} ${s2!=='ok'?`<span class="badge ${s2==='agotado'?'bad':'warn'}">${s2==='agotado'?'Agotado':'Bajo'}</span>`:''}${inl?' <span class="badge">Ya en la compra</span>':''}</div><div class="xs mut">Hay ${qf(st)} ${esc(p.unidad||'')} · vendiste ${qf(v)} en 30 días${e.ult?` · última compra ${qf(e.ult.q)} ${esc(p.unidad||'')} (${esc(e.ult.f||'')})`:''}</div></div><div class="r"><div class="b num">${money(e.costo*(pr?pr.c:1))}</div><div class="xs mut">por ${esc(pr?pr.n.toLowerCase():p.unidad||'pza')}</div></div></label>`}).join('')||'<div class="empty">Este proveedor aún no tiene productos. Asígnalos en Productos o en Proveedores, o se llenan solos al comprarle.</div>';
+    m.q('#pp_add').textContent=sel.size?`Agregar ${sel.size} a la compra`:'Agregar a la compra'};
+  m.el.addEventListener('change',e=>{const t=e.target;if(t.id==='pp_v'){pv=t.value;sel.clear();draw()}else if(t.dataset.id){t.checked?sel.add(t.dataset.id):sel.delete(t.dataset.id);draw()}});
+  m.q('#pp_q').addEventListener('input',debounce(e=>{q=e.target.value;draw()},120));
+  m.do.add=()=>{if(!sel.size){toast('Marca los productos que quieres pedir','warn');return}
+    const byId=new Map(data().map(x=>[x.p.id,x]));
+    sel.forEach(id=>{const x=byId.get(id);if(!x)return;draft.lines.push(initMode({pid:id,qty:1,prov:pv,costo:x.e.costo},sugq(x.p,x.st,x.v)))});
+    m.close();compTab='nueva';V.compras();toast('Productos agregados con precios de '+provName(pv))};
+  draw()}
 function askQuote(){const ls=draft.lines.filter(l=>l.qty>0);if(!ls.length)return;
   const vs=all('proveedores').map(v=>{const mine=ls.filter(l=>all('precios_prov').some(x=>x.producto_id===l.pid&&x.proveedor_id===v.id));return{v,mine}}).sort((a,b)=>b.mine.length-a.mine.length||a.v.nombre.localeCompare(b.v.nombre));
   const rows=vs.map(({v,mine})=>{const arr=mine.length?mine:ls,text=`Hola, buen día. Soy de ${cfg().negocio}. ¿Me puedes cotizar por favor?\n\n${arr.map(l=>lineTxt(l,false)).join('\n')}\n\nGracias.`,n=waNumber(v.telefono);
@@ -924,7 +953,7 @@ function compraNueva(){
   const body=$('#cbody');
   const draw=()=>{
     const total=r2(sumBy(draft.lines,limp));
-    body.innerHTML=`<div class="row wrap" style="margin-bottom:10px"><button class="btn pri" id="cadd">${ic('plus')} Agregar producto</button><button class="btn" id="cscan">${ic('scan')} Escanear</button><button class="btn" id="clow">${ic('alert')} Agregar los de stock bajo</button>${draft.lines.length?`<button class="btn" id="cask">${ic('msg')} Pedir cotización</button>`:''}</div>
+    body.innerHTML=`<div class="row wrap" style="margin-bottom:10px"><button class="btn pri" id="cadd">${ic('plus')} Agregar producto</button><button class="btn" id="cscan">${ic('scan')} Escanear</button><button class="btn" id="cprov">${ic('truck')} Por proveedor</button><button class="btn" id="cprov">${ic('truck')} Por proveedor</button><button class="btn" id="clow">${ic('alert')} Agregar los de stock bajo</button>${draft.lines.length?`<button class="btn" id="cask">${ic('msg')} Pedir cotización</button>`:''}</div>
     <div class="list" id="clines">${draft.lines.map((l,i)=>{const p=get('productos',l.pid)||{nombre:'(eliminado)'},ps=preciosDe(l.pid),best=ps[0],rows=rowsFor(l),libres=all('proveedores').filter(v=>!rows.some(r=>r.proveedor_id===v.id)).sort((a,b)=>a.nombre.localeCompare(b.nombre));
       return`<div class="card flat"><div class="row"><div class="sp"><div class="b ell">${esc(p.nombre)}</div><div class="xs mut">Existencia ${qf(stockOf(l.pid))} ${esc(p.unidad||'')} · último costo ${money(p.costo)}</div></div><button class="btn sm ghost" data-rm="${i}">${ic('trash')}</button></div>
       <div class="row wrap" style="margin-top:8px;align-items:flex-end"><div class="field" style="max-width:170px"><label>Cantidad (${esc(lunit(l))})</label><input data-i="${i}" data-k="qty" type="number" step="any" inputmode="decimal" value="${l.qty}"></div>${presOf(p)?`<div class="seg"><button data-mode="${i}" data-m="pres" class="${l.mode==='pres'?'on':''}">${esc(presOf(p).n)} (${qf(presOf(p).c)} ${esc(p.unidad||'')})</button><button data-mode="${i}" data-m="base" class="${l.mode==='pres'?'':'on'}">${esc(p.unidad||'pza')}</button></div>`:''}${l.mode==='pres'?`<span class="xs mut">= ${qf(lq(l))} ${esc(p.unidad||'')} al inventario</span>`:''}</div>
@@ -944,6 +973,7 @@ function compraNueva(){
       else if(k==='extra'){if(t.value){l.extra=(l.extra||[]).concat(t.value)}}
       else l[k]=num(t.value);
       draw()};
+    $('#cprov').onclick=porProveedor;
     const ca=$('#cask');if(ca)ca.onclick=askQuote;
     const cg=$('#cgr');if(cg)cg.onclick=e=>{const b=e.target.closest('[data-send]');if(b)sendPedido(b.dataset.send)};
     const cm=$('#cmet');if(cm){cm.onchange=e=>draft.metodo=e.target.value;$('#cnota').oninput=e=>draft.nota=e.target.value;$('#csave').onclick=saveCompra}};
@@ -961,7 +991,7 @@ function compraNueva(){
       items.forEach(i=>{addMov(i.pid,i.qty,'compra',c.id,c.folio);const p=get('productos',i.pid);if(p&&cfg().auto_costo==1&&i.costo>0){p.costo=i.costo;save('productos',p)}
         if(prov&&i.costo>0){let pr=all('precios_prov').find(x=>x.producto_id===i.pid&&x.proveedor_id===prov);if(pr)Object.assign(pr,{costo:i.costo,fecha:today()});else pr={id:uid(),producto_id:i.pid,proveedor_id:prov,costo:i.costo,fecha:today()};save('precios_prov',pr)}});
       if(caja)save('caja_mov',{id:uid(),caja_id:caja.id,tipo:'salida',concepto:'Compra '+c.folio+(prov?' · '+provName(prov):''),monto:total,fecha:new Date().toISOString(),usuario_id:U().id,compra_id:c.id})});
-    const n=Object.keys(groups).length;draft={lines:[],metodo:'efectivo',nota:''};toast(`Compra registrada (${n} proveedor${n===1?'':'es'}). Inventario actualizado.`);renderTop();compTab='hist';V.compras()}
+    const n=Object.keys(groups).length;const malos=ls.map(l=>get('productos',l.pid)).filter((x,i,a)=>x&&riesgoPrecio(x)&&a.indexOf(x)===i);draft={lines:[],metodo:'efectivo',nota:''};toast(`Compra registrada (${n} proveedor${n===1?'':'es'}). Inventario actualizado.`);if(malos.length){const mm=modal(`${mhead('Revisa estos precios')}<div class="sm">Con el nuevo costo, el precio de venta o de mayoreo quedó igual o por debajo de lo que te cuesta. Corrígelo para no perder:</div><div class="list">${malos.map(x=>`<button class="item" data-id="${x.id}"><div class="sp"><div class="b">${esc(x.nombre)}</div><div class="xs mut">Costo ${money(x.costo)} · Menudeo ${money(x.precio)} · Mayoreo ${money(x.mayoreo||0)}</div></div><span class="badge bad">Corregir</span></button>`).join('')}</div><div class="mf"><button class="btn pri" data-close>Luego</button></div>`);mm.el.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b){mm.close();productForm(b.dataset.id)}})}renderTop();compTab='hist';V.compras()}
   draw()}
 function compraHist(){
   const a=all('compras').sort((x,y)=>x.fecha<y.fecha?1:-1).slice(0,100);
