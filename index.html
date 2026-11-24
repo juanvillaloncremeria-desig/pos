@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1b6b47">
+<meta name="theme-color" content="#1f3b63">
 <title>Cremería POS</title>
 <link rel="manifest" href='data:application/manifest+json,{"name":"Cremería POS","short_name":"POS","display":"standalone","background_color":"#1b6b47","theme_color":"#1b6b47","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%231b6b47%27/%3E%3Ctext x=%2750%27 y=%2766%27 font-size=%2756%27 text-anchor=%27middle%27 fill=%27white%27 font-family=%27Arial%27 font-weight=%27bold%27%3EP%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}]}'>
 <style>
-:root{--bg:#f3f5f2;--surf:#fff;--surf2:#eaefea;--ink:#16201b;--mut:#5f6e66;--line:#d9e1da;--pri:#1b6b47;--pri-ink:#fff;--pri-soft:#ddf0e5;--acc:#f0a81f;--acc-soft:#fff0cc;--bad:#c23b2e;--bad-soft:#fde4e0;--warn:#a86a00;--warn-soft:#fdefcf;--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.06)}
-@media(prefers-color-scheme:dark){:root{--bg:#0f1511;--surf:#18211c;--surf2:#212c26;--ink:#e9f0ea;--mut:#9aaaa0;--line:#2c3a32;--pri:#43b27e;--pri-ink:#06150d;--pri-soft:#163225;--acc:#f3b83c;--acc-soft:#3a2f12;--bad:#ef6e60;--bad-soft:#3d1b17;--warn:#f0b94f;--warn-soft:#3a2f12;color-scheme:dark}}
+:root{--bg:#f4f6f9;--surf:#fff;--surf2:#eaeef4;--ink:#152033;--mut:#5a6678;--line:#dce2ea;--pri:#1f3b63;--pri-ink:#fff;--pri-soft:#e2eaf5;--acc:#c8922c;--acc-soft:#f9eccf;--bad:#c23b2e;--bad-soft:#fde4e0;--warn:#a86a00;--warn-soft:#fdefcf;--shadow:0 1px 2px rgba(20,32,51,.05),0 8px 24px rgba(20,32,51,.06)}
+@media(prefers-color-scheme:dark){:root{--bg:#0d121a;--surf:#151c28;--surf2:#1e2735;--ink:#e8edf5;--mut:#97a4b8;--line:#283345;--pri:#82a8dc;--pri-ink:#0a1424;--pri-soft:#1b2b44;--acc:#e0ad4a;--acc-soft:#3a2f14;--bad:#ef6e60;--bad-soft:#3d1b17;--warn:#f0b94f;--warn-soft:#3a2f12;color-scheme:dark}}
 *{box-sizing:border-box}
 html,body,#root{height:100%;margin:0}
 body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent;overflow:hidden}
@@ -183,6 +183,19 @@ html,body,#root{height:auto!important;min-height:0!important;overflow:hidden!imp
 @media(max-width:620px){.hide-s{display:none}}
 code{background:var(--surf2);padding:1px 5px;border-radius:5px}
 details summary{padding:6px 0}
+/* pulido visual */
+body{font-family:Inter,"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+h2{font-size:22px;font-weight:750;letter-spacing:-.02em}
+h3{font-weight:700;letter-spacing:-.01em}
+.card{border-radius:16px;box-shadow:var(--shadow)}.card.flat{box-shadow:none}
+#side{box-shadow:1px 0 0 var(--line)}
+.nav{border-radius:12px;font-weight:600}
+.nav.on{background:var(--pri-soft);color:var(--pri);box-shadow:inset 3px 0 0 var(--acc)}
+.btn{border-radius:12px}
+.btn.pri{box-shadow:0 2px 10px color-mix(in srgb,var(--pri) 28%,transparent)}
+.brand .logo{border-radius:11px}
+input,select,textarea{border-radius:12px}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}.swatch{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;border:2px solid var(--line);background:var(--surf);cursor:pointer;font-weight:650}.swatch.on{border-color:var(--pri)}.swatch i{width:22px;height:22px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)}
 </style>
 <style id="pageStyle">@page{margin:0}</style>
 </head>
@@ -230,8 +243,15 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-24 s';
-const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
+const APP_VER='2026-11-24 t';
+const TEMAS={
+ marino:{n:'Azul marino y oro',c:'#1f3b63',l:'--bg:#f4f6f9;--surf2:#eaeef4;--ink:#152033;--mut:#5a6678;--line:#dce2ea;--pri:#1f3b63;--pri-ink:#fff;--pri-soft:#e2eaf5;--acc:#c8922c;--acc-soft:#f9eccf',d:'--bg:#0d121a;--surf:#151c28;--surf2:#1e2735;--ink:#e8edf5;--mut:#97a4b8;--line:#283345;--pri:#82a8dc;--pri-ink:#0a1424;--pri-soft:#1b2b44;--acc:#e0ad4a;--acc-soft:#3a2f14'},
+ esmeralda:{n:'Verde esmeralda',c:'#17624a',l:'--bg:#f3f6f4;--surf2:#e8efeb;--ink:#14211b;--mut:#5c6d63;--line:#d8e2dc;--pri:#17624a;--pri-ink:#fff;--pri-soft:#dcefe6;--acc:#c8922c;--acc-soft:#f9eccf',d:'--bg:#0e1512;--surf:#17211c;--surf2:#202c26;--ink:#e8f0ea;--mut:#98a99f;--line:#2b3a32;--pri:#4cb88a;--pri-ink:#04150d;--pri-soft:#15322a;--acc:#e0ad4a;--acc-soft:#3a2f14'},
+ vino:{n:'Vino y oro',c:'#7a2c3c',l:'--bg:#f8f5f4;--surf2:#f0eae9;--ink:#241a1d;--mut:#6c5d61;--line:#e6dcdd;--pri:#7a2c3c;--pri-ink:#fff;--pri-soft:#f5e3e6;--acc:#c8922c;--acc-soft:#f9eccf',d:'--bg:#151011;--surf:#1e1618;--surf2:#2a1f22;--ink:#f1e8ea;--mut:#b0a0a4;--line:#3a2a2e;--pri:#e08b9b;--pri-ink:#2a0a12;--pri-soft:#3b1c23;--acc:#e0ad4a;--acc-soft:#3a2f14'},
+ grafito:{n:'Grafito',c:'#2d333c',l:'--bg:#f4f5f6;--surf2:#eaebed;--ink:#1a1d21;--mut:#5f646b;--line:#dddfe2;--pri:#2d333c;--pri-ink:#fff;--pri-soft:#e7e9ec;--acc:#d4962a;--acc-soft:#f9eccf',d:'--bg:#0f1114;--surf:#181b20;--surf2:#21252b;--ink:#eceef1;--mut:#9aa1ab;--line:#2d3238;--pri:#b9c3d1;--pri-ink:#101318;--pri-soft:#252b33;--acc:#e0ad4a;--acc-soft:#3a2f14'}};
+function applyTema(){let k='marino';try{k=(cfg().tema||'marino')}catch(e){}const t=TEMAS[k]||TEMAS.marino;let st=document.getElementById('temaCss');if(!st){st=document.createElement('style');st.id='temaCss';document.head.appendChild(st)}
+  st.textContent=`:root{${t.l}}@media(prefers-color-scheme:dark){:root{${t.d}}}`;const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=t.c}
+const CFGDEF={tema:'marino',negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
 const DEV=(()=>{let d=LS.get('dev');if(!d){d='D'+Math.random().toString(36).slice(2,4).toUpperCase();LS.set('dev',d)}return d})();
@@ -241,7 +261,8 @@ const nextFolio=()=>{const n=(LS.get('folio',0)||0)+1;LS.set('folio',n);return D
 const hashPin=p=>{let h=2166136261;for(const ch of 'cr3m'+p)h=Math.imul(h^ch.charCodeAt(0),16777619);return(h>>>0).toString(36)};
 let CU=null;const U=()=>CU||{id:'',nombre:'—',rol:'vendedor'};
 const PERMS={admin:['*'],cajero:['pos','ventas','inicio','productos','clientes','ruta','cobranza','compras','proveedores','inventario','caja','reportes'],vendedor:['pos','ventas','inicio','productos','clientes','ruta','cobranza','caja','compras']};
-const can=v=>{const p=PERMS[U().rol]||[];return p.includes('*')||p.includes(v)};
+const permsOf=r=>{if(r==='admin')return['*'];const c=cfg()['perm_'+r];return typeof c==='string'?['inicio','pos',...c.split(',').filter(Boolean)]:(PERMS[r]||[])};
+const can=v=>{const p=permsOf(U().rol);return p.includes('*')||p.includes(v)};
 const canEditCat=()=>U().rol!=='vendedor';
 const isAdmin=()=>U().rol==='admin';
 
@@ -369,7 +390,7 @@ function ticketText(v,pago){
   R.forEach(r=>{if(r.t==='cb')o.push(`*${r.text}*`);else if(r.t==='c')o.push(r.big?`*${r.text}*`:r.text);else if(r.t==='hr')o.push('--------------------------');else if(r.t==='kv')o.push(r.big?`*${r.a}: ${r.b}*`:`${r.a}: ${r.b}`);else if(r.t==='l')o.push(r.text);else if(r.t==='item')o.push(`${r.name}\n   ${r.det} = ${r.imp}`)});
   return o.join('\n')}
 const isAndroid=()=>/Android/i.test(navigator.userAgent);
-function printSmart(R,html){if(R&&cfg().papel!=='carta'&&isAndroid())return printImage(R);return printHTML(html!=null?html:renderTicket(R))}
+function printSmart(R,html){const h=()=>html!=null?html:renderTicket(R);if(R&&cfg().papel!=='carta'){if(isAndroid())return printImage(R);if(BT.dev&&BT.dev.gatt&&BT.dev.gatt.connected)return btPrint(R).catch(e=>{toast('Bluetooth falló; abriendo impresión normal','warn');printHTML(h())})}return printHTML(h())}
 async function rawbtPrint(R){const cv=await ticketCanvas(R),W=cv.width,H=cv.height,wb=W/8,d=cv.getContext('2d').getImageData(0,0,W,H).data,bytes=new Uint8Array(wb*H);
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;if(d[i]*.3+d[i+1]*.59+d[i+2]*.11<150)bytes[y*wb+(x>>3)]|=0x80>>(x&7)}
   const parts=[new Uint8Array([0x1b,0x40])];
@@ -465,7 +486,7 @@ V.ventas=()=>{
 const NAV=[['inicio','Inicio','home'],['pos','Vender','cart'],['ventas','Ventas y tickets','list'],['productos','Productos','box'],['clientes','Clientes','users'],['ruta','Ruta y visitas','pin'],['cobranza','Cobranza','wallet'],['compras','Compras','truck'],['proveedores','Proveedores','store'],['inventario','Inventario','layers'],['caja','Caja','cash'],['reportes','Reportes','chart'],['ajustes','Ajustes','gear']];
 const TABV=[['pos','Vender','cart'],['productos','Productos','box'],['clientes','Clientes','users'],['ruta','Ruta','pin'],['mas','Más','more']];
 const VTITLE=Object.fromEntries(NAV.map(n=>[n[0],n[1]]));
-function renderShell(){
+function renderShell(){applyTema();
   const c=cfg();
   $('#root').innerHTML=`<div id="app"><aside id="side"><div class="brand"><div class="logo">${c.logo?`<img src="${esc(c.logo)}" alt="">`:'P'}</div><div>${esc(c.negocio)}</div></div>${NAV.filter(n=>can(n[0])).map(n=>`<button class="nav" data-v="${n[0]}">${ic(n[2])}<span>${n[1]}</span><span class="dot" hidden></span></button>`).join('')}</aside><div id="wrap"><div id="top"></div><div id="main"></div></div><nav id="tabs">${TABV.filter(t=>t[0]==='mas'||can(t[0])).map(t=>`<button data-v="${t[0]}">${ic(t[2])}<span>${t[1]}</span></button>`).join('')}</nav></div>`;
   $('#app').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b)return;if(b.dataset.v==='mas')moreMenu();else go(b.dataset.v)});
@@ -963,7 +984,7 @@ function compraNueva(){
   const body=$('#cbody');
   const draw=()=>{
     const total=r2(sumBy(draft.lines,limp));
-    body.innerHTML=`<div class="row wrap" style="margin-bottom:10px"><button class="btn pri" id="cadd">${ic('plus')} Agregar producto</button><button class="btn" id="cscan">${ic('scan')} Escanear</button><button class="btn" id="cprov">${ic('truck')} Por proveedor</button><button class="btn" id="cprov">${ic('truck')} Por proveedor</button><button class="btn" id="clow">${ic('alert')} Agregar los de stock bajo</button>${draft.lines.length?`<button class="btn" id="cask">${ic('msg')} Pedir cotización</button>`:''}</div>
+    body.innerHTML=`<div class="row wrap" style="margin-bottom:10px"><button class="btn pri" id="cadd">${ic('plus')} Agregar producto</button><button class="btn" id="cscan">${ic('scan')} Escanear</button><button class="btn" id="cprov">${ic('truck')} Por proveedor</button><button class="btn" id="clow">${ic('alert')} Agregar los de stock bajo</button>${draft.lines.length?`<button class="btn" id="cask">${ic('msg')} Pedir cotización</button>`:''}</div>
     <div class="list" id="clines">${draft.lines.map((l,i)=>{const p=get('productos',l.pid)||{nombre:'(eliminado)'},ps=preciosDe(l.pid),best=ps[0],rows=rowsFor(l),libres=all('proveedores').filter(v=>!rows.some(r=>r.proveedor_id===v.id)).sort((a,b)=>a.nombre.localeCompare(b.nombre));
       return`<div class="card flat"><div class="row"><div class="sp"><div class="b ell">${esc(p.nombre)}</div><div class="xs mut">Existencia ${qf(stockOf(l.pid))} ${esc(p.unidad||'')} · último costo ${money(p.costo)}</div></div><button class="btn sm ghost" data-rm="${i}">${ic('trash')}</button></div>
       <div class="row wrap" style="margin-top:8px;align-items:flex-end"><div class="field" style="max-width:170px"><label>Cantidad (${esc(lunit(l))})</label><input data-i="${i}" data-k="qty" type="number" step="any" inputmode="decimal" value="${l.qty}"></div>${presOf(p)?`<div class="seg"><button data-mode="${i}" data-m="pres" class="${l.mode==='pres'?'on':''}">${esc(presOf(p).n)} (${qf(presOf(p).c)} ${esc(p.unidad||'')})</button><button data-mode="${i}" data-m="base" class="${l.mode==='pres'?'':'on'}">${esc(p.unidad||'pza')}</button></div>`:''}${l.mode==='pres'?`<span class="xs mut">= ${qf(lq(l))} ${esc(p.unidad||'')} al inventario</span>`:''}</div>
@@ -1214,6 +1235,8 @@ V.reportes=()=>{
   const ventas=r2(sumBy(vs,v=>v.total)),utilidad=r2(sumBy(vs,v=>sumBy(v.items||[],i=>(i.precio-(+i.costo||0))*i.qty)-0)-sumBy(vs,v=>v.descuento>0?v.descuento:0));
   const byM=m=>r2(sumBy(ps.filter(p=>p.metodo===m),p=>p.cobrado));
   const prod={};vs.forEach(v=>(v.items||[]).forEach(i=>{const x=prod[i.pid]=prod[i.pid]||{n:i.nombre,u:i.unidad,q:0,imp:0,ut:0};x.q+=i.qty;x.imp+=i.importe;x.ut+=(i.precio-(+i.costo||0))*i.qty}));
+  const hab={};all('compras').filter(c=>c.estado!=='pedido'&&c.estado!=='cancelado'&&c.proveedor_id).sort((x,y)=>x.fecha<y.fecha?-1:1).forEach(c=>(c.items||[]).forEach(i=>hab[i.pid]=c.proveedor_id));
+  const pvs={};vs.forEach(v=>(v.items||[]).forEach(i=>{const pv=hab[i.pid]||(mejorPrecio(i.pid)||{}).proveedor_id||'',x=pvs[pv]=pvs[pv]||{imp:0,ut:0};x.imp+=i.importe;x.ut+=(i.precio-(+i.costo||0))*i.qty}));
   const top=Object.values(prod).sort((x,y)=>y.imp-x.imp).slice(0,10);
   const usr={};vs.forEach(v=>{const x=usr[v.usuario_id]=usr[v.usuario_id]||{n:0,t:0};x.n++;x.t+=v.total});
   const dias={};vs.forEach(v=>dias[v.dia]=(dias[v.dia]||0)+v.total);const dk=Object.keys(dias).sort(),mx=Math.max(1,...Object.values(dias));
@@ -1223,6 +1246,7 @@ V.reportes=()=>{
   <div class="grid g2"><div class="card"><h3>Cobrado por método</h3><table><tbody>${['efectivo','tarjeta','transferencia'].map(m=>`<tr><td>${METODOS[m]}</td><td class="r num b">${money(byM(m))}</td></tr>`).join('')}<tr><td class="mut">Recargos de tarjeta incluidos</td><td class="r num mut">${money(sumBy(ps,p=>p.recargo))}</td></tr></tbody></table></div>
   <div class="card"><h3>Por vendedor</h3><table><tbody>${Object.entries(usr).map(([id,x])=>`<tr><td>${esc((get('usuarios',id)||{}).nombre||'—')}</td><td class="r num">${x.n} tickets</td><td class="r num b">${money(x.t)}</td></tr>`).join('')||'<tr><td class="mut">Sin ventas</td></tr>'}</tbody></table></div></div>
   <div class="card" style="margin-top:12px"><h3>Ventas por día</h3><div class="list" style="margin-top:8px">${dk.map(k=>`<div class="row"><span class="sm" style="width:92px">${fmtD(k)}</span><div class="bar sp"><i style="width:${dias[k]/mx*100}%"></i></div><b class="num" style="min-width:96px;text-align:right">${money(dias[k])}</b></div>`).join('')||'<div class="mut">Sin ventas en el periodo.</div>'}</div></div>
+  <div class="card" style="margin-top:12px"><h3>Utilidad por proveedor</h3><div class="xs mut">Según el proveedor al que le compraste ese producto por última vez.</div><div class="scroll-x"><table><thead><tr><th>Proveedor</th><th class="r">Vendido</th><th class="r">Utilidad</th><th class="r">Margen</th></tr></thead><tbody>${Object.entries(pvs).sort((x,y)=>y[1].ut-x[1].ut).map(([id,x])=>`<tr><td>${id?esc(provName(id)):'<span class="mut">Sin proveedor</span>'}</td><td class="r num">${money(x.imp)}</td><td class="r num b">${money(x.ut)}</td><td class="r num">${x.imp>0?Math.round(x.ut/x.imp*100):0}%</td></tr>`).join('')||'<tr><td colspan="4" class="mut">Sin datos</td></tr>'}</tbody></table></div></div>
   <div class="card" style="margin-top:12px"><h3>Productos más vendidos</h3><div class="scroll-x"><table><thead><tr><th>Producto</th><th class="r">Cantidad</th><th class="r">Importe</th><th class="r">Utilidad</th></tr></thead><tbody>${top.map(x=>`<tr><td>${esc(x.n)}</td><td class="r num">${qf(x.q)} ${esc(x.u||'')}</td><td class="r num b">${money(x.imp)}</td><td class="r num">${money(x.ut)}</td></tr>`).join('')||'<tr><td colspan="4" class="mut">Sin datos</td></tr>'}</tbody></table></div></div>`;
   $('#rp').onclick=e=>{const x=e.target.closest('[data-p]');if(x){repP=x.dataset.p;V.reportes()}};
   const ra=$('#ra');if(ra){ra.onchange=e=>{repA=e.target.value;V.reportes()};$('#rb').onchange=e=>{repB=e.target.value;V.reportes()}}
@@ -1329,12 +1353,20 @@ function ajNegocio(){
   <label class="row"><input type="checkbox" id="a_ss" ${c.vender_sin_stock==1?'checked':''}><span>Permitir vender aunque no haya existencia (solo avisa)</span></label>
   <label class="row"><input type="checkbox" id="a_ac" ${c.auto_costo==1?'checked':''}><span>Actualizar el costo del producto con cada compra</span></label>
   <label class="row"><input type="checkbox" id="a_ap" ${c.autoprint==1?'checked':''}><span>Imprimir el ticket automáticamente al cobrar</span></label>
+  <div class="card flat"><div class="b" style="margin-bottom:8px">Colores de la aplicación</div><div class="swatches" id="a_tema">${Object.entries(TEMAS).map(([k,t])=>`<button type="button" class="swatch ${(c.tema||'marino')===k?'on':''}" data-k="${k}"><i style="background:${t.c}"></i>${t.n}</button>`).join('')}</div><div class="xs mut" style="margin-top:6px">Se aplica al momento. Sigue el modo claro u oscuro de tu equipo.</div></div>
+  <div class="card flat"><div class="b">Impresora de tickets</div><div class="xs mut" style="margin:4px 0 8px">En el celular se imprime con la app RawBT. En la computadora hay dos formas: instalar la impresora en Windows (si el cuadro de impresión solo ofrece "Guardar como PDF", Windows aún no la tiene instalada), o conectarla aquí por Bluetooth con Chrome o Edge: pulsa "Conectar" y elige tu impresora; luego "Imprimir prueba".</div><div class="row wrap"><button type="button" class="btn" id="a_btc">${ic('print')} Conectar impresora Bluetooth</button><button type="button" class="btn" id="a_btt">${ic('print')} Imprimir prueba</button></div></div>
   <div><button class="btn pri lg" id="asv">Guardar cambios</button></div></div>`;
+  $('#a_tema').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;setCfg({tema:b.dataset.k});applyTema();$$('#a_tema .swatch').forEach(x=>x.classList.toggle('on',x===b))};
+  $('#a_btc').onclick=async()=>{try{await btConnect();toast('Impresora conectada: '+(BT.dev.name||'Bluetooth'))}catch(e){BT.dev=null;BT.ch=null;toast('No se pudo conectar: '+(e.message||e),'bad')}};
+  $('#a_btt').onclick=()=>{const R=[{t:'c',big:1,text:cfg().negocio},{t:'hr'},{t:'c',text:'PRUEBA DE IMPRESIÓN'},{t:'kv',a:'Fecha',b:fmtDT(new Date().toISOString())},{t:'kv',a:'TOTAL',b:money(123.45),big:1},{t:'hr'},{t:'c',text:'Si lees esto, tu impresora funciona'}];printSmart(R,renderTicket(R))};
   const lg=imgPicker({q:s=>$(s)},'#alogo',c.logo,{max:220,type:'image/png',name:c.negocio});
   $('#asv').onclick=()=>{setCfg({negocio:$('#a_neg').value.trim()||CFGDEF.negocio,telefono:$('#a_tel').value.trim(),email:$('#a_mail').value.trim(),direccion:$('#a_dir').value.trim(),leyenda:$('#a_ley').value.trim(),papel:$('#a_pap').value,bloqueo_min:+$('#a_blq').value,ticket_fs:+$('#a_tfs').value||24,recargo_tarjeta:num($('#a_rec').value),stock_min_default:num($('#a_smd').value),pais:$('#a_pais').value.replace(/\D/g,'')||'52',editar_precios:$('#a_ep').checked?1:0,vender_sin_stock:$('#a_ss').checked?1:0,auto_costo:$('#a_ac').checked?1:0,autoprint:$('#a_ap').checked?1:0,logo:lg.value});
     const dv=$('#a_dev').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(dv&&dv!==DEV){LS.set('dev',dv);toast('Nombre de dispositivo guardado: se aplica al recargar la página')}else toast('Ajustes guardados');renderShell();go('ajustes')}}
 function ajUsuarios(){
   $('#abody').innerHTML=`<div class="hd"><span class="mut sm sp">Cada usuario entra con su PIN. Vendedor: vende, cobra, abre y cierra su caja, visita clientes y recibe mercancía (compras). Cajero: además inventario, proveedores y reportes. Administrador: todo.</span><button class="btn pri" id="unew">${ic('plus')} Nuevo usuario</button></div><div class="list">${all('usuarios').sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(u=>`<button class="item" data-id="${u.id}">${avatar(u)}<div class="sp"><div class="b">${esc(u.nombre)}</div><div class="xs mut">${esc(u.rol)}${u.activo===0?' · inactivo':''}</div></div></button>`).join('')}</div>`;
+  const secs=NAV.filter(n=>!['inicio','pos','ajustes'].includes(n[0])),ver={cajero:permsOf('cajero'),vendedor:permsOf('vendedor')};
+  $('#abody').insertAdjacentHTML('beforeend',`<div class="card" style="margin-top:12px"><h3>Qué puede ver cada rol</h3><div class="xs mut" style="margin-bottom:8px">Marca las secciones que verá cada uno. El administrador (tú) ve todo. Vender e Inicio siempre están disponibles.</div><div class="scroll-x"><table><thead><tr><th>Sección</th><th class="r">Cajero</th><th class="r">Vendedor</th></tr></thead><tbody>${secs.map(n=>`<tr><td>${esc(n[1])}</td>${['cajero','vendedor'].map(r=>`<td class="r"><input type="checkbox" data-pr="${r}" data-s="${n[0]}" ${ver[r].includes(n[0])?'checked':''}></td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="mf"><button class="btn pri" id="psave">Guardar permisos</button></div></div>`);
+  $('#psave').onclick=()=>{const o={};['cajero','vendedor'].forEach(r=>o['perm_'+r]=$$('#abody [data-pr="'+r+'"]').filter(x=>x.checked).map(x=>x.dataset.s).join(','));setCfg(o);toast('Permisos guardados')};
   $('#unew').onclick=()=>userForm(null);$('#abody').onclick=e=>{const b=e.target.closest('[data-id]');if(b)userForm(b.dataset.id)}}
 function userForm(id){
   const old=id?get('usuarios',id):null,u=old||{rol:'vendedor',activo:1};
