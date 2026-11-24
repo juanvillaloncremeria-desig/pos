@@ -33,7 +33,7 @@ h2{font-size:20px}h3{font-size:16px}
 .ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .sm .ic{width:16px;height:16px}
 /* shell */
-#app{display:grid;grid-template-columns:212px minmax(0,1fr);height:100%}
+#app{display:grid;grid-template-columns:212px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%}
 #side{background:var(--surf);border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:3px;overflow:auto}
 .brand{font-weight:800;font-size:16px;padding:4px 8px 12px;line-height:1.15;display:flex;gap:10px;align-items:center}
 .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--pri);color:var(--pri-ink);display:grid;place-items:center;font-weight:800;flex:none;overflow:hidden}
@@ -105,7 +105,7 @@ td.r,th.r{text-align:right}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;box-shadow:var(--shadow);max-width:520px}
 .toast.bad{background:var(--bad);color:#fff}.toast.warn{background:var(--acc);color:#2b1d00}
 /* POS */
-.pos{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:14px;height:100%}
+.pos{display:grid;grid-template-columns:minmax(0,1fr) 410px;grid-template-rows:minmax(0,1fr);gap:14px;height:100%;min-height:0}
 .pos-l{display:flex;flex-direction:column;min-height:0;min-width:0;gap:10px}
 .cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;flex:none}
 .cats button{border:1.5px solid var(--line);background:var(--surf);border-radius:99px;padding:6px 13px;font-weight:650;white-space:nowrap;cursor:pointer;color:var(--mut)}
@@ -137,7 +137,7 @@ td.r,th.r{text-align:right}
 .tl.big{font-size:24px;font-weight:800}
 .cartbar{display:none}
 @media(max-width:1000px){
-.pos{grid-template-columns:minmax(0,1fr)}
+.pos{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
 .pos-r{position:fixed;inset:0;z-index:60;border-radius:0;transform:translateY(100%);transition:transform .2s;padding-top:env(safe-area-inset-top,0)}
 .pos-r.open{transform:none}
 .cartbar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(66px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--pri);color:var(--pri-ink);border-radius:14px;padding:12px 16px;align-items:center;gap:10px;font-weight:800;box-shadow:var(--shadow);border:0;font-size:16px;cursor:pointer}
@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-23 j';
+const APP_VER='2026-11-23 k';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -240,7 +240,7 @@ const nextFolio=()=>{const n=(LS.get('folio',0)||0)+1;LS.set('folio',n);return D
 /* ============ usuarios y permisos ============ */
 const hashPin=p=>{let h=2166136261;for(const ch of 'cr3m'+p)h=Math.imul(h^ch.charCodeAt(0),16777619);return(h>>>0).toString(36)};
 let CU=null;const U=()=>CU||{id:'',nombre:'—',rol:'vendedor'};
-const PERMS={admin:['*'],cajero:['pos','inicio','productos','clientes','ruta','cobranza','compras','proveedores','inventario','caja','reportes'],vendedor:['pos','inicio','productos','clientes','ruta','cobranza','caja','compras']};
+const PERMS={admin:['*'],cajero:['pos','ventas','inicio','productos','clientes','ruta','cobranza','compras','proveedores','inventario','caja','reportes'],vendedor:['pos','ventas','inicio','productos','clientes','ruta','cobranza','caja','compras']};
 const can=v=>{const p=PERMS[U().rol]||[];return p.includes('*')||p.includes(v)};
 const canEditCat=()=>U().rol!=='vendedor';
 const isAdmin=()=>U().rol==='admin';
@@ -435,7 +435,25 @@ async function btPrint(R){
 
 /* ============ shell, login, navegación ============ */
 const V={};let view='pos';
-const NAV=[['inicio','Inicio','home'],['pos','Vender','cart'],['productos','Productos','box'],['clientes','Clientes','users'],['ruta','Ruta y visitas','pin'],['cobranza','Cobranza','wallet'],['compras','Compras','truck'],['proveedores','Proveedores','store'],['inventario','Inventario','layers'],['caja','Caja','cash'],['reportes','Reportes','chart'],['ajustes','Ajustes','gear']];
+/* ============ ventas y tickets (historial) ============ */
+let vtP='hoy',vtQ='';
+V.ventas=()=>{
+  const adm=isAdmin(),t=today(),ay=dayStr(new Date(Date.now()-864e5)),d7=dayStr(new Date(Date.now()-6*864e5)),mes=t.slice(0,8)+'01';
+  const rng={hoy:[t,t],ayer:[ay,ay],'7':[d7,t],mes:[mes,t],todo:['0000','9999']}[vtP];
+  const q=norm(vtQ);
+  const lst=all('ventas').filter(v=>v.dia>=rng[0]&&v.dia<=rng[1]&&(adm||v.usuario_id===U().id)&&(!q||norm((v.folio||'')+' '+(v.cliente_nombre||'')).includes(q))).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const tot=r2(sumBy(lst.filter(v=>!v.cancelada),v=>v.total));
+  $('#main').innerHTML=`<div class="hd"><h2>Ventas y tickets <span class="mut sm">(${lst.length})</span></h2><div class="b num" style="font-size:18px">${money(tot)}</div></div>
+  <div class="row wrap" style="margin-bottom:10px"><div class="seg" id="vtp">${[['hoy','Hoy'],['ayer','Ayer'],['7','7 días'],['mes','Este mes'],['todo','Todas']].map(([k,l])=>`<button data-p="${k}" class="${vtP===k?'on':''}">${l}</button>`).join('')}</div><input id="vtq" class="sp" placeholder="Buscar por folio o cliente" value="${esc(vtQ)}" style="min-width:180px"></div>
+  <div class="list" id="vtl">${lst.slice(0,200).map(v=>{const est=v.cancelada?'Cancelada':v.estado==='pagada'?'Pagada':v.estado==='credito'?'Crédito':'Pendiente';const col=v.cancelada?'var(--bad)':v.estado==='pagada'?'var(--pri)':'var(--acc)';return`<button class="item" data-id="${v.id}"><div class="sp"><div class="b">${esc(v.folio||'')} · ${esc(v.cliente_nombre||'Público general')}</div><div class="xs mut">${fmtDT(v.fecha)} · ${(v.items||[]).length} productos · ${esc((get('usuarios',v.usuario_id)||{}).nombre||'')}</div></div><div style="text-align:right"><div class="num b">${money(v.total)}</div><div class="xs" style="color:${col};font-weight:700">${est}${v.saldo>0.004&&!v.cancelada?' · debe '+money(v.saldo):''}</div></div></button>`}).join('')||'<div class="hint">No hay ventas en este periodo.</div>'}</div>`;
+  $('#vtp').onclick=e=>{const b=e.target.closest('[data-p]');if(b){vtP=b.dataset.p;V.ventas()}};
+  $('#vtq').oninput=debounce(e=>{vtQ=e.target.value;V.ventas();const i=$('#vtq');i.focus();i.setSelectionRange(vtQ.length,vtQ.length)},250);
+  $('#vtl').onclick=e=>{const b=e.target.closest('[data-id]');if(!b)return;const v=get('ventas',b.dataset.id);if(!v)return;
+    const m=modal(`${mhead('Venta '+esc(v.folio||''))}<div class="row wrap"><button class="btn pri sp" data-do="pr">${ic('print')} Imprimir</button><button class="btn sp" data-do="sh">${ic('share')} WhatsApp / correo</button>${adm&&!v.cancelada?`<button class="btn sp" data-do="cx" style="color:var(--bad)">${ic('trash')} Cancelar venta</button>`:''}</div><div style="overflow:auto;max-height:55dvh;border-radius:10px;border:1px solid var(--line);margin-top:10px"><div class="ticket w${esc(cfg().papel)}">${ticketHTML(v,null)}</div></div>`);
+    m.do.pr=()=>printSmart(ticketModel(v,null),ticketHTML(v,null));m.do.sh=()=>shareTicket(v,null);m.do.cx=async()=>{m.close();await cancelSale(v.id);V.ventas()}}};
+
+
+const NAV=[['inicio','Inicio','home'],['pos','Vender','cart'],['ventas','Ventas y tickets','list'],['productos','Productos','box'],['clientes','Clientes','users'],['ruta','Ruta y visitas','pin'],['cobranza','Cobranza','wallet'],['compras','Compras','truck'],['proveedores','Proveedores','store'],['inventario','Inventario','layers'],['caja','Caja','cash'],['reportes','Reportes','chart'],['ajustes','Ajustes','gear']];
 const TABV=[['pos','Vender','cart'],['productos','Productos','box'],['clientes','Clientes','users'],['ruta','Ruta','pin'],['mas','Más','more']];
 const VTITLE=Object.fromEntries(NAV.map(n=>[n[0],n[1]]));
 function renderShell(){
@@ -1165,7 +1183,7 @@ function runImport(kind,rows,map){
 const SYNC={state:'off',url:'',token:'',auto:true,pend:0,last:0,touch(){}};
 const NUMF=new Set('updated deleted costo precio mayoreo min_mayoreo stock_min stock_inicial lat lng limite_credito cantidad monto recargo cobrado total subtotal descuento saldo recibido cambio fondo contado esperado diferencia qty granel activo cancelada pagada recargo_tarjeta editar_precios vender_sin_stock auto_costo autoprint ult_lat ult_lng rastrear dist auto'.split(' '));
 const JSONF=new Set(['items','resumen']);
-function normRec(r){const o={};for(const k in r){let v=r[k];if(v===''||v==null)continue;if(NUMF.has(k)){v=+v;if(isNaN(v))continue}else if(JSONF.has(k)){if(typeof v==='string'){try{v=JSON.parse(v)}catch{continue}}}else if(typeof v==='boolean')v=v?1:0;else if(typeof v!=='string'&&typeof v!=='object')v=String(v);o[k]=v}return o.id?o:null}
+function normRec(r){const o={};for(const k in r){let v=r[k];if(v===''||v==null)continue;if(k==='dia'&&typeof v==='string'&&v.length>10){const d=new Date(v);if(!isNaN(d))v=dayStr(d)}if(NUMF.has(k)){v=+v;if(isNaN(v))continue}else if(JSONF.has(k)){if(typeof v==='string'){try{v=JSON.parse(v)}catch{continue}}}else if(typeof v==='boolean')v=v?1:0;else if(typeof v!=='string'&&typeof v!=='object')v=String(v);o[k]=v}return o.id?o:null}
 function syncCfg(){const c=LS.get('sync',{});SYNC.url=c.url||'';SYNC.token=c.token||'';SYNC.auto=c.auto!==0;SYNC.state=SYNC.url?(SYNC.state==='off'?'idle':SYNC.state):'off'}
 const renderTopSoon=debounce(()=>{if(CU)renderTop()},300),schedSync=debounce(()=>syncNow(false),4000);
 dirtyHook=()=>{SYNC.pend++;renderTopSoon();if(SYNC.url&&SYNC.auto)schedSync()};
