@@ -230,8 +230,8 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-23 k';
-const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
+const APP_VER='2026-11-23 l';
+const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
 const DEV=(()=>{let d=LS.get('dev');if(!d){d='D'+Math.random().toString(36).slice(2,4).toUpperCase();LS.set('dev',d)}return d})();
@@ -499,7 +499,7 @@ function loginScreen(){
   document.removeEventListener('keydown',window._kd||(()=>{}));window._kd=kd;document.addEventListener('keydown',kd);
   draw();
 }
-function boot2(){document.removeEventListener('keydown',window._kd||(()=>{}));renderShell();startTracking();go(can(LS.get('view','pos'))?LS.get('view','pos'):'pos');if(!boot2.once){boot2.once=1;setupSync()}}
+function boot2(){document.removeEventListener('keydown',window._kd||(()=>{}));renderShell();startTracking();go(can(LS.get('view','pos'))?LS.get('view','pos'):'pos');if(!boot2.once){boot2.once=1;setupLock();setupSync()}}
 
 /* ============ inicio ============ */
 V.inicio=()=>{
@@ -1206,6 +1206,9 @@ async function syncNow(manual){
     if(manual)toast(n?`Sincronizado: ${n} cambios recibidos`:'Sincronizado: todo al día')
   }catch(e){SYNC.state='err';SYNC.err=e.message;console.warn(e);if(manual)toast('No se pudo sincronizar: '+e.message,'bad')}
   finally{syncing=false;if(CU)renderTop();if(view==='ajustes'&&ajTab==='datos'&&!modals.length)ajDatos()}}
+let lastAct=Date.now();
+function setupLock(){['pointerdown','keydown','touchstart','wheel'].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+  setInterval(()=>{const mn=+cfg().bloqueo_min||0;if(!CU||mn<=0||Date.now()-lastAct<mn*60000)return;try{while(modals.length)modals[modals.length-1].close()}catch(e){}logout();toast('Sesión bloqueada por inactividad. Entra con tu PIN.','warn')},15000)}
 function setupSync(){syncCfg();if(SYNC.url)setTimeout(()=>syncNow(false),1500);
   setInterval(()=>{if(SYNC.url&&SYNC.auto&&!document.hidden)syncNow(false)},120000);
   window.addEventListener('online',()=>syncNow(false));document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SYNC.url&&SYNC.auto)syncNow(false)})}
@@ -1222,14 +1225,14 @@ function ajNegocio(){
   $('#abody').innerHTML=`<div class="card" style="display:flex;flex-direction:column;gap:12px;max-width:760px"><div id="alogo"></div>
   <div class="fgrid"><div class="field"><label>Nombre del negocio</label><input id="a_neg" value="${esc(c.negocio)}"></div><div class="field"><label>Teléfono</label><input id="a_tel" value="${esc(c.telefono)}"></div><div class="field"><label>Correo</label><input id="a_mail" value="${esc(c.email)}"></div></div>
   <div class="field"><label>Dirección (aparece en el ticket; usa Enter para otra línea)</label><textarea id="a_dir" style="min-height:64px">${esc(c.direccion)}</textarea></div><div class="field"><label>Mensaje al pie del ticket</label><input id="a_ley" value="${esc(c.leyenda)}"></div>
-  <div class="fgrid"><div class="field"><label>Papel de impresión</label><select id="a_pap">${[['58','Ticket 58 mm (384 puntos)'],['80','Ticket 80 mm'],['carta','Hoja carta']].map(([k,l])=>`<option value="${k}" ${c.papel===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>Tamaño de letra del ticket</label><select id="a_tfs">${[[20,'Pequeña'],[24,'Mediana'],[28,'Grande'],[32,'Extra grande']].map(([k,l])=>`<option value="${k}" ${(+c.ticket_fs||24)===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>Recargo pago con tarjeta (%)</label><input id="a_rec" type="number" step="any" value="${c.recargo_tarjeta}"></div><div class="field"><label>Stock mínimo general (aviso)</label><input id="a_smd" type="number" step="any" value="${c.stock_min_default}"></div><div class="field"><label>Código de país WhatsApp</label><input id="a_pais" value="${esc(c.pais)}" placeholder="52"></div><div class="field"><label>Nombre de este dispositivo</label><input id="a_dev" value="${esc(DEV)}" maxlength="4"></div></div>
+  <div class="fgrid"><div class="field"><label>Papel de impresión</label><select id="a_pap">${[['58','Ticket 58 mm (384 puntos)'],['80','Ticket 80 mm'],['carta','Hoja carta']].map(([k,l])=>`<option value="${k}" ${c.papel===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>Bloquear la app tras</label><select id="a_blq">${[[0,'Nunca'],[2,'2 minutos sin usar'],[5,'5 minutos sin usar'],[10,'10 minutos sin usar'],[30,'30 minutos sin usar']].map(([k,l])=>`<option value="${k}" ${(c.bloqueo_min==null?10:+c.bloqueo_min)===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>Tamaño de letra del ticket</label><select id="a_tfs">${[[20,'Pequeña'],[24,'Mediana'],[28,'Grande'],[32,'Extra grande']].map(([k,l])=>`<option value="${k}" ${(+c.ticket_fs||24)===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="field"><label>Recargo pago con tarjeta (%)</label><input id="a_rec" type="number" step="any" value="${c.recargo_tarjeta}"></div><div class="field"><label>Stock mínimo general (aviso)</label><input id="a_smd" type="number" step="any" value="${c.stock_min_default}"></div><div class="field"><label>Código de país WhatsApp</label><input id="a_pais" value="${esc(c.pais)}" placeholder="52"></div><div class="field"><label>Nombre de este dispositivo</label><input id="a_dev" value="${esc(DEV)}" maxlength="4"></div></div>
   <label class="row"><input type="checkbox" id="a_ep" ${c.editar_precios==1?'checked':''}><span>Los vendedores pueden editar precios (precio negociado)</span></label>
   <label class="row"><input type="checkbox" id="a_ss" ${c.vender_sin_stock==1?'checked':''}><span>Permitir vender aunque no haya existencia (solo avisa)</span></label>
   <label class="row"><input type="checkbox" id="a_ac" ${c.auto_costo==1?'checked':''}><span>Actualizar el costo del producto con cada compra</span></label>
   <label class="row"><input type="checkbox" id="a_ap" ${c.autoprint==1?'checked':''}><span>Imprimir el ticket automáticamente al cobrar</span></label>
   <div><button class="btn pri lg" id="asv">Guardar cambios</button></div></div>`;
   const lg=imgPicker({q:s=>$(s)},'#alogo',c.logo,{max:220,type:'image/png',name:c.negocio});
-  $('#asv').onclick=()=>{setCfg({negocio:$('#a_neg').value.trim()||CFGDEF.negocio,telefono:$('#a_tel').value.trim(),email:$('#a_mail').value.trim(),direccion:$('#a_dir').value.trim(),leyenda:$('#a_ley').value.trim(),papel:$('#a_pap').value,ticket_fs:+$('#a_tfs').value||24,recargo_tarjeta:num($('#a_rec').value),stock_min_default:num($('#a_smd').value),pais:$('#a_pais').value.replace(/\D/g,'')||'52',editar_precios:$('#a_ep').checked?1:0,vender_sin_stock:$('#a_ss').checked?1:0,auto_costo:$('#a_ac').checked?1:0,autoprint:$('#a_ap').checked?1:0,logo:lg.value});
+  $('#asv').onclick=()=>{setCfg({negocio:$('#a_neg').value.trim()||CFGDEF.negocio,telefono:$('#a_tel').value.trim(),email:$('#a_mail').value.trim(),direccion:$('#a_dir').value.trim(),leyenda:$('#a_ley').value.trim(),papel:$('#a_pap').value,bloqueo_min:+$('#a_blq').value,ticket_fs:+$('#a_tfs').value||24,recargo_tarjeta:num($('#a_rec').value),stock_min_default:num($('#a_smd').value),pais:$('#a_pais').value.replace(/\D/g,'')||'52',editar_precios:$('#a_ep').checked?1:0,vender_sin_stock:$('#a_ss').checked?1:0,auto_costo:$('#a_ac').checked?1:0,autoprint:$('#a_ap').checked?1:0,logo:lg.value});
     const dv=$('#a_dev').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(dv&&dv!==DEV){LS.set('dev',dv);toast('Nombre de dispositivo guardado: se aplica al recargar la página')}else toast('Ajustes guardados');renderShell();go('ajustes')}}
 function ajUsuarios(){
   $('#abody').innerHTML=`<div class="hd"><span class="mut sm sp">Cada usuario entra con su PIN. Vendedor: vende, cobra, abre y cierra su caja, visita clientes y recibe mercancía (compras). Cajero: además inventario, proveedores y reportes. Administrador: todo.</span><button class="btn pri" id="unew">${ic('plus')} Nuevo usuario</button></div><div class="list">${all('usuarios').sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(u=>`<button class="item" data-id="${u.id}">${avatar(u)}<div class="sp"><div class="b">${esc(u.nombre)}</div><div class="xs mut">${esc(u.rol)}${u.activo===0?' · inactivo':''}</div></div></button>`).join('')}</div>`;
