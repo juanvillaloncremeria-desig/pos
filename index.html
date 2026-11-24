@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-23 h';
+const APP_VER='2026-11-23 j';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -359,15 +359,24 @@ function ticketText(v,pago){
   const R=ticketModel(v,pago).filter(r=>r.t!=='logo'),o=[];
   R.forEach(r=>{if(r.t==='cb')o.push(`*${r.text}*`);else if(r.t==='c')o.push(r.big?`*${r.text}*`:r.text);else if(r.t==='hr')o.push('--------------------------');else if(r.t==='kv')o.push(r.big?`*${r.a}: ${r.b}*`:`${r.a}: ${r.b}`);else if(r.t==='l')o.push(r.text);else if(r.t==='item')o.push(`${r.name}\n   ${r.det} = ${r.imp}`)});
   return o.join('\n')}
+const isAndroid=()=>/Android/i.test(navigator.userAgent);
+function printSmart(R,html){if(R&&cfg().papel!=='carta'&&isAndroid())return printImage(R);return printHTML(html!=null?html:renderTicket(R))}
+async function rawbtPrint(R){const cv=await ticketCanvas(R),W=cv.width,H=cv.height,wb=W/8,d=cv.getContext('2d').getImageData(0,0,W,H).data,bytes=new Uint8Array(wb*H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;if(d[i]*.3+d[i+1]*.59+d[i+2]*.11<150)bytes[y*wb+(x>>3)]|=0x80>>(x&7)}
+  const parts=[new Uint8Array([0x1b,0x40])];
+  for(let y0=0;y0<H;y0+=128){const h=Math.min(128,H-y0);parts.push(new Uint8Array([0x1d,0x76,0x30,0x00,wb&255,wb>>8,h&255,h>>8]),bytes.subarray(y0*wb,(y0+h)*wb))}
+  parts.push(new Uint8Array([0x0a,0x0a]));const all=new Uint8Array(parts.reduce((a,b)=>a+b.length,0));let o=0;parts.forEach(b=>{all.set(b,o);o+=b.length});
+  let bin='';for(let i=0;i<all.length;i+=8192)bin+=String.fromCharCode.apply(null,all.subarray(i,i+8192));
+  location.href='intent:base64,'+btoa(bin)+'#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;'}
 async function printImage(R){const c=cfg();if(c.papel==='carta')return;const cv=await ticketCanvas(R);const pw=c.papel==='80'?80:58,ph=(cv.height/cv.width*pw+1).toFixed(1);$('#pageStyle').textContent=`@page{size:${pw}mm ${ph}mm;margin:0}`;const im=new Image();im.style.cssText='width:100%;display:block';im.src=cv.toDataURL('image/png');try{await im.decode()}catch(e){}const pa=$('#printArea');pa.innerHTML='';pa.appendChild(im);requestAnimationFrame(()=>setTimeout(()=>window.print(),350))}
 function printHTML(html){const c=cfg();$('#pageStyle').textContent=c.papel==='carta'?'@page{size:letter;margin:14mm}':`@page{size:${c.papel==='58'?'58mm':'80mm'} auto;margin:2mm}`;$('#printArea').innerHTML=`<div class="ticket w${esc(c.papel)}">${html}</div>`;setTimeout(()=>window.print(),60)}
 function waNumber(t){let d=String(t||'').replace(/\D/g,'');if(d.length===10)d=cfg().pais+d;return d}
 function shareDoc(title,html,text,{tel='',email='',subject='',R=null}={}){
   const m=modal(`${mhead(esc(title))}<div style="overflow:auto;max-height:42dvh;border-radius:10px;border:1px solid var(--line)"><div class="ticket w${esc(cfg().papel)}">${html}</div></div>
   <div class="fgrid"><div class="field"><label>WhatsApp (número)</label><input id="shw" inputmode="tel" value="${esc(tel)}" placeholder="10 dígitos"></div><div class="field"><label>Correo electrónico</label><input id="shm" type="email" value="${esc(email)}" placeholder="cliente@correo.com"></div></div>
-  <div class="row wrap"><button class="btn" data-do="print">${ic('print')} Imprimir</button><button class="btn" style="background:#25d366;color:#04210f;border-color:#25d366" data-do="wa">${ic('msg')} WhatsApp</button><button class="btn" data-do="mail">${ic('mail')} Correo</button>${navigator.share?`<button class="btn" data-do="share">${ic('share')} Compartir</button>`:''}<button class="btn" data-do="copy">${ic('copy')} Copiar</button>${R?`<button class="btn" data-do="img">${ic('down')} Imagen (app de la impresora)</button>${navigator.bluetooth?`<button class="btn acc" data-do="bt">${ic('print')} Imprimir por Bluetooth</button>`:''}`:''}</div>
+  <div class="row wrap"><button class="btn" data-do="print">${ic('print')} Imprimir</button><button class="btn" style="background:#25d366;color:#04210f;border-color:#25d366" data-do="wa">${ic('msg')} WhatsApp</button><button class="btn" data-do="mail">${ic('mail')} Correo</button>${navigator.share?`<button class="btn" data-do="share">${ic('share')} Compartir</button>`:''}<button class="btn" data-do="copy">${ic('copy')} Copiar</button>${R?`<button class="btn" data-do="img">${ic('down')} Imagen (app de la impresora)</button>${navigator.bluetooth?`<button class="btn acc" data-do="bt">${ic('print')} Imprimir por Bluetooth</button>`:''}${isAndroid()?`<button class="btn acc" data-do="rawbt">${ic('print')} RawBT nítido</button>`:''}`:''}</div>
   <div class="mf"><button class="btn pri" data-close>Listo</button></div>`,{wide:false});
-  m.do.print=()=>R&&cfg().papel!=='carta'?printImage(R):printHTML(html);
+  m.do.print=()=>printSmart(R,html);m.do.rawbt=()=>rawbtPrint(R).catch(e=>toast('No se pudo enviar a RawBT: '+e.message,'bad'));
   m.do.wa=()=>{const n=waNumber(m.q('#shw').value);if(n.length<10){toast('Escribe el número de WhatsApp','warn');return}window.open(`https://wa.me/${n}?text=${encodeURIComponent(text)}`,'_blank')};
   m.do.mail=()=>{const e=m.q('#shm').value.trim();window.location.href=`mailto:${encodeURIComponent(e)}?subject=${encodeURIComponent(subject||title)}&body=${encodeURIComponent(text.replace(/\*/g,''))}`};
   m.do.share=()=>navigator.share({title:subject||title,text}).catch(()=>{});
@@ -381,7 +390,7 @@ const shareTicket=(v,p)=>{const cl=v.cliente_id&&get('clientes',v.cliente_id)||{
 const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
 function ticketLayout(R,W){
   const c=document.createElement('canvas').getContext('2d'),fs=(+cfg().ticket_fs||24)+(W>384?2:0),big=fs+6,LH=fs+6,ops=[];let y=6;
-  const font=(s,b)=>`${b?'bold ':''}${s}px "Courier New", monospace`;
+  const font=(s,b)=>`bold ${s}px "Courier New", monospace`;
   const wrap=(t,f)=>{c.font=f;const out=[];let cur='';for(const w of String(t).split(' ')){const x=cur?cur+' '+w:w;if(c.measureText(x).width>W-8&&cur){out.push(cur);cur=w}else cur=x}if(cur)out.push(cur);return out};
   for(const r of R){
     if(r.t==='logo'){ops.push({k:'logo',src:r.src,y});y+=W>384?120:108}
@@ -397,8 +406,11 @@ async function ticketCanvas(R){
   const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#000';x.textBaseline='top';
   for(const o of ops){
     if(o.k==='t'){x.font=o.f;x.textAlign=o.a;x.fillText(o.txt,o.x,o.y)}
-    else if(o.k==='hr'){for(let i=0;i<W;i+=10)x.fillRect(i,o.y,6,2)}
-    else if(o.k==='logo'){try{const im=await loadImg(o.src),s=Math.min((W>384?110:100)/im.height,W*.92/im.width),w=im.width*s,h=im.height*s;x.drawImage(im,(W-w)/2,o.y,w,h)}catch{}}}
+    else if(o.k==='hr'){for(let i=0;i<W;i+=10)x.fillRect(i,o.y,6,3)}}
+  /* texto en blanco y negro puro: la térmica imprime más oscuro y sin letras tenues */
+  const id=x.getImageData(0,0,W,H),d=id.data;for(let i=0;i<d.length;i+=4){const v=d[i]*.3+d[i+1]*.59+d[i+2]*.11<215?0:255;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255}x.putImageData(id,0,0);
+  for(const o of ops){
+    if(o.k==='logo'){try{const im=await loadImg(o.src),s=Math.min((W>384?110:100)/im.height,W*.92/im.width),w=im.width*s,h=im.height*s;x.save();x.filter='contrast(1.35) brightness(.92)';x.drawImage(im,(W-w)/2,o.y,w,h);x.restore()}catch{}}}
   return cv}
 async function shareImage(R,name){
   const cv=await ticketCanvas(R),blob=await new Promise(r=>cv.toBlob(r,'image/png')),file=new File([blob],name+'.png',{type:'image/png'});
@@ -677,8 +689,8 @@ function afterSale({v,pago},paid){
   ${cam>0?`<div class="card flat c"><div class="mut sm">Entrega de cambio</div><div class="num b" style="font-size:44px;color:var(--pri)">${money(cam)}</div></div>`:''}
   <div class="row wrap"><button class="btn sp" data-do="pr">${ic('print')} Imprimir</button><button class="btn sp" data-do="sh">${ic('share')} WhatsApp / correo</button></div>
   <button class="btn pri lg block" data-do="nx">${ic('plus')} Nueva venta</button>`,{sticky:true,onClose:()=>{if(view==='pos')setTimeout(()=>$('#pq')&&window.matchMedia('(min-width:1001px)').matches&&$('#pq').focus(),50)}});
-  m.do.pr=()=>cfg().papel!=='carta'?printImage(ticketModel(v,null)):printHTML(ticketHTML(v,null));m.do.sh=()=>shareTicket(v,null);m.do.nx=()=>m.close();
-  if(cfg().autoprint==1)setTimeout(()=>cfg().papel!=='carta'?printImage(ticketModel(v,null)):printHTML(ticketHTML(v,null)),200)}
+  m.do.pr=()=>printSmart(ticketModel(v,null),ticketHTML(v,null));m.do.sh=()=>shareTicket(v,null);m.do.nx=()=>m.close();
+  if(cfg().autoprint==1)setTimeout(()=>printSmart(ticketModel(v,null),ticketHTML(v,null)),200)}
 function reopenSale(id){const v=get('ventas',id);if(!v)return;
   if(cart.items.length&&!confirm('El carrito actual tiene productos. ¿Reemplazarlo con la venta '+v.folio+'?'))return;
   cart={items:v.items.filter(i=>get('productos',i.pid)).map(i=>({pid:i.pid,qty:i.qty,pm:Math.abs(i.precio-i.lista)>0.001?i.precio:null})),cliente_id:v.cliente_id||'',esquema:v.esquema||'menudeo',total_neg:+v.descuento?v.total:null,venta_id:v.id};go('pos')}
