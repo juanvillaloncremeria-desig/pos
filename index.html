@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-24 r';
+const APP_VER='2026-11-24 s';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,bloqueo_min:10,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -354,6 +354,15 @@ function ticketModel(v,pago){
   return R}
 function renderTicket(R){return R.map(r=>r.t==='logo'?`<img class="lg" src="${esc(r.src)}" alt="">`:r.t==='c'?`<div class="c ${r.big?'big':''}">${esc(r.text)}</div>`:r.t==='cb'?`<div class="c" style="font-weight:700">${esc(r.text)}</div>`:r.t==='hr'?'<div class="hr"></div>':r.t==='kv'?`<div class="l ${r.big?'big':''}"><span>${esc(r.a)}</span><b>${esc(r.b)}</b></div>`:r.t==='l'?`<div>${esc(r.text)}</div>`:r.t==='item'?`<div>${esc(r.name)}</div><div class="l"><span>&nbsp;&nbsp;${esc(r.det)}</span><span>${esc(r.imp)}</span></div>`:'').join('')}
 const ticketHTML=(v,p)=>renderTicket(ticketModel(v,p));
+function pedidoModel(prov,rows,total,folio){const c=cfg(),R=[];
+  if(c.logo){R.push({t:'logo',src:c.logo});R.push({t:'cb',text:String(c.negocio||'').toUpperCase()})}else R.push({t:'c',text:c.negocio,big:1});
+  R.push({t:'hr'});R.push({t:'c',big:1,text:'PEDIDO A PROVEEDOR'});
+  R.push({t:'kv',a:'Proveedor',b:prov,big:1});if(folio)R.push({t:'kv',a:'Folio',b:folio});R.push({t:'kv',a:'Fecha',b:fmtDT(new Date().toISOString())});
+  R.push({t:'hr'});R.push({t:'l',text:'Producto'});R.push({t:'l',text:'Cantidad            Importe'});R.push({t:'hr'});
+  rows.forEach(r=>R.push({t:'item',name:r.nombre,det:r.det,imp:r.imp||''}));
+  R.push({t:'hr'});if(total>0)R.push({t:'kv',a:'TOTAL ESTIMADO',b:money(total),big:1});
+  return R}
+function shareModel(title,R,text,o){return shareDoc(title,renderTicket(R),text,{...o,R})}
 function cardScale(imps,target){const sum=imps.reduce((a,b)=>a+b,0),f=sum?target/sum:1,out=imps.map(x=>r2(x*f));if(out.length){const d=r2(target-out.reduce((a,b)=>a+b,0));out[out.length-1]=r2(out[out.length-1]+d)}return out}
 function ticketText(v,pago){
   const R=ticketModel(v,pago).filter(r=>r.t!=='logo'),o=[];
@@ -924,7 +933,7 @@ function groupsHTML(){const gr={};draft.lines.filter(l=>l.qty>0).forEach(l=>(gr[
   return Object.entries(gr).map(([k,arr])=>`<div class="item" style="cursor:default"><div class="sp"><div class="b">${k?esc(provName(k)):'Sin proveedor definido'}</div><div class="xs mut">${arr.length} producto${arr.length===1?'':'s'}</div></div><div class="b num">${money(sumBy(arr,limp))}</div>${k?`<button class="btn sm" data-send="${k}">${ic('msg')} Enviar pedido</button>`:''}</div>`).join('')}
 function sendPedido(k){const v=get('proveedores',k),arr=draft.lines.filter(l=>l.qty>0&&l.prov===k);if(!v||!arr.length)return;const tot=r2(sumBy(arr,limp));
   const text=`*Pedido · ${cfg().negocio}*\nPara: ${v.nombre}\n\n${arr.map(l=>lineTxt(l,true)).join('\n')}\n\nTotal estimado: ${money(tot)}\nGracias.`;
-  shareDoc('Pedido a '+v.nombre,`<div style="padding:10px;white-space:pre-wrap;font-size:14px">${esc(text.replace(/\*/g,''))}</div>`,text,{tel:v.telefono||'',email:v.email||'',subject:'Pedido · '+cfg().negocio})}
+  shareModel('Pedido a '+v.nombre,pedidoModel(v.nombre,arr.map(l=>{const p=get('productos',l.pid)||{nombre:'?'};return{nombre:p.nombre,det:`${qf(l.qty)} ${lunit(l)}${l.mode==='pres'?' ('+qf(lq(l))+' '+(p.unidad||'')+')':''}${l.costo>0?' x '+money(l.costo*lf(l)):''}`,imp:l.costo>0?money(limp(l)):''}}),tot,''),text,{tel:v.telefono||'',email:v.email||'',subject:'Pedido · '+cfg().negocio})}
 function vendidos30(){const d=new Date();d.setDate(d.getDate()-30);const c=dayStr(d),o={};all('ventas').forEach(v=>{if(v.cancelada||(v.dia||'')<c)return;(v.items||[]).forEach(i=>{o[i.pid]=(o[i.pid]||0)+(+i.qty||0)})});return o}
 function porProveedor(){
   const provs=all('proveedores').sort((a,b)=>a.nombre.localeCompare(b.nombre));if(!provs.length){toast('Primero registra proveedores','warn');return}
@@ -1022,7 +1031,7 @@ function recibirPedido(c){
     if(caja)save('caja_mov',{id:uid(),caja_id:caja.id,tipo:'salida',concepto:'Compra '+c.folio+(prov?' · '+provName(prov):''),monto:c.total,fecha:new Date().toISOString(),usuario_id:U().id,compra_id:c.id});
     const malos=c.items.map(i=>get('productos',i.pid)).filter((x,i,a)=>x&&riesgoPrecio(x)&&a.indexOf(x)===i);
     m.close();renderTop();toast('Pedido recibido. Inventario actualizado.');if(malos.length)toast('Revisa precios (quedaron debajo del costo): '+malos.map(x=>x.nombre).join(', '),'warn');compTab='hist';V.compras()}}
-function sendPedidoRec(c,v){const text=`*Pedido · ${cfg().negocio}*\nPara: ${v.nombre}\n\n${(c.items||[]).map(i=>`• ${i.pres||qf(i.qty)+' '+(i.unidad||'pza')} ${i.nombre}`).join('\n')}\n\nGracias.`;shareDoc('Pedido a '+v.nombre,`<div style="padding:10px;white-space:pre-wrap;font-size:14px">${esc(text.replace(/\*/g,''))}</div>`,text,{tel:v.telefono||'',email:v.email||'',subject:'Pedido · '+cfg().negocio})}
+function sendPedidoRec(c,v){const text=`*Pedido · ${cfg().negocio}*\nPara: ${v.nombre}\n\n${(c.items||[]).map(i=>`• ${i.pres||qf(i.qty)+' '+(i.unidad||'pza')} ${i.nombre}`).join('\n')}\n\nGracias.`;shareModel('Pedido a '+v.nombre,pedidoModel(v.nombre,(c.items||[]).map(i=>({nombre:i.nombre,det:i.pres||(qf(i.qty)+' '+(i.unidad||'pza')),imp:i.importe>0?money(i.importe):''})),c.total,c.folio),text,{tel:v.telefono||'',email:v.email||'',subject:'Pedido · '+cfg().negocio})}
 function compraHist(){
   const a=all('compras').filter(c=>c.estado!=='pedido'&&c.estado!=='cancelado').sort((x,y)=>x.fecha<y.fecha?1:-1).slice(0,100);
   $('#cbody').innerHTML=`<div class="list">${a.map(c=>`<button class="item" data-id="${c.id}"><div class="sp"><div class="b">${esc(c.folio)} · ${esc(c.proveedor||'Sin proveedor')}</div><div class="xs mut">${fmtDT(c.fecha)} · ${(c.items||[]).length} producto(s) · ${esc(METODOS[c.metodo]||c.metodo)}</div></div><div class="b num">${money(c.total)}</div><span class="badge ${c.pagada?'ok':'warn'}">${c.pagada?'Pagada':'Por pagar'}</span></button>`).join('')||'<div class="empty">Todavía no registras compras.</div>'}</div>`;
