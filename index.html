@@ -230,7 +230,7 @@ const del=(t,id)=>{const r=mem[t].get(id);if(r){r.deleted=1;save(t,r)}};
 function wipeAll(){return Promise.all(TABLES.map(t=>{mem[t]=new Map();return new Promise(r=>{if(!idb)return r();const q=idb.transaction(t,'readwrite').objectStore(t).clear();q.onsuccess=q.onerror=()=>r()})}))}
 
 /* ============ configuración ============ */
-const APP_VER='2026-11-22 g';
+const APP_VER='2026-11-23 h';
 const CFGDEF={negocio:'Mi Cremería y Abarrotes',direccion:'',telefono:'',email:'',logo:'',leyenda:'¡Gracias por su preferencia!',papel:'58',ticket_fs:24,pais:'52',recargo_tarjeta:3,stock_min_default:5,editar_precios:1,vender_sin_stock:1,auto_costo:1};
 const cfg=()=>Object.assign({},CFGDEF,get('config','cfg')||{});
 const setCfg=p=>{const c=get('config','cfg')||{id:'cfg'};Object.assign(c,p);save('config',c)};
@@ -328,16 +328,14 @@ function ticketModel(v,pago){
   R.push({t:'kv',a:'Cliente',b:cl?cl.nombre:(v.cliente_nombre||'PÚBLICO GENERAL')});
   R.push({t:'hr'});
   if(!esAbono){
-    R.push({t:'l',text:'Nombre'});R.push({t:'l',text:'Cant x Precio          Importe'});R.push({t:'hr'});
-    (v.items||[]).forEach(i=>R.push({t:'item',name:i.nombre,det:`${qf(i.qty)} x ${money(i.precio)}`,imp:money(i.importe)}));
-    R.push({t:'hr'});
-    if(+v.descuento)R.push({t:'kv',a:'Subtotal',b:money(v.subtotal)}),R.push({t:'kv',a:+v.descuento>0?'Descuento':'Ajuste',b:money(-v.descuento)});
-    R.push({t:'kv',a:'TOTAL',b:money(v.total),big:1});
     const rec=r2(sumBy(ps,p=>p.recargo)),mets=[...new Set(ps.filter(p=>p.monto>0).map(p=>p.metodo))];
-    if(rec)R.push({t:'kv',a:'Recargo tarjeta',b:money(rec)}),R.push({t:'kv',a:'TOTAL COBRADO',b:money(v.total+rec),big:1});
+    const its=v.items||[],tot=r2(v.total+rec),ratio=v.total>0?tot/v.total:1,subC=rec?r2(v.subtotal*ratio):v.subtotal,imps=rec?cardScale(its.map(i=>i.importe),subC):its.map(i=>i.importe);
+    R.push({t:'l',text:'Nombre'});R.push({t:'l',text:'Cant x Precio          Importe'});R.push({t:'hr'});
+    its.forEach((i,k)=>R.push({t:'item',name:i.nombre,det:`${qf(i.qty)} x ${money(rec&&+i.qty?imps[k]/i.qty:i.precio)}`,imp:money(imps[k])}));
+    R.push({t:'hr'});
+    if(+v.descuento)R.push({t:'kv',a:'Subtotal',b:money(subC)}),R.push({t:'kv',a:+v.descuento>0?'Descuento':'Ajuste',b:money(rec?-r2(subC-tot):-v.descuento)});
+    R.push({t:'kv',a:'TOTAL',b:money(tot),big:1});
     if(mets.length)R.push({t:'c',text:mets.map(m=>(METODOS[m]||m).toUpperCase()).join(' + ')});
-    const pct=+c.recargo_tarjeta||0;
-    if(mets.length&&!rec&&pct>0&&mets.every(m=>m==='efectivo'||m==='transferencia'))R.push({t:'kv',a:'AHORRO POR FORMA DE PAGO',b:money(r2(v.total*pct/100))});
     const ef=ps.filter(p=>p.metodo==='efectivo'&&+p.recibido>0).pop();
     if(ef){R.push({t:'kv',a:'EFECTIVO RECIBIDO',b:money(ef.recibido),big:1});if(+ef.cambio>0)R.push({t:'kv',a:'CAMBIO',b:money(ef.cambio),big:1})}
     if(ps.length>1||(ps.length&&mets.some(m=>m!=='efectivo'&&m!=='transferencia'&&m!=='tarjeta')))ps.forEach(p=>R.push({t:'kv',a:(p.tipo==='abono'?'Abono ':'Pago ')+(METODOS[p.metodo]||p.metodo),b:money(p.monto)}));
@@ -348,7 +346,7 @@ function ticketModel(v,pago){
     const prev=r2(sumBy(antes.filter(p=>p.id!==pago.id),p=>p.monto));
     R.push({t:'kv',a:'Pagado antes',b:money(prev)});
     R.push({t:'kv',a:'ABONO ('+(METODOS[pago.metodo]||pago.metodo)+')',b:money(pago.monto),big:1});
-    if(+pago.recargo)R.push({t:'kv',a:'Recargo tarjeta',b:money(pago.recargo)}),R.push({t:'kv',a:'Total cobrado',b:money(pago.cobrado)});
+    if(+pago.recargo)R.push({t:'kv',a:'Comisión tarjeta',b:money(pago.recargo)}),R.push({t:'kv',a:'Total cobrado',b:money(pago.cobrado)});
     if(pago.metodo==='efectivo'&&+pago.recibido)R.push({t:'kv',a:'Recibido',b:money(pago.recibido)}),R.push({t:'kv',a:'Cambio',b:money(pago.cambio||0)});
     R.push({t:'kv',a:'Saldo restante',b:money(Math.max(0,r2(v.total-prev-pago.monto))),big:1});
   }
@@ -356,6 +354,7 @@ function ticketModel(v,pago){
   return R}
 function renderTicket(R){return R.map(r=>r.t==='logo'?`<img class="lg" src="${esc(r.src)}" alt="">`:r.t==='c'?`<div class="c ${r.big?'big':''}">${esc(r.text)}</div>`:r.t==='cb'?`<div class="c" style="font-weight:700">${esc(r.text)}</div>`:r.t==='hr'?'<div class="hr"></div>':r.t==='kv'?`<div class="l ${r.big?'big':''}"><span>${esc(r.a)}</span><b>${esc(r.b)}</b></div>`:r.t==='l'?`<div>${esc(r.text)}</div>`:r.t==='item'?`<div>${esc(r.name)}</div><div class="l"><span>&nbsp;&nbsp;${esc(r.det)}</span><span>${esc(r.imp)}</span></div>`:'').join('')}
 const ticketHTML=(v,p)=>renderTicket(ticketModel(v,p));
+function cardScale(imps,target){const sum=imps.reduce((a,b)=>a+b,0),f=sum?target/sum:1,out=imps.map(x=>r2(x*f));if(out.length){const d=r2(target-out.reduce((a,b)=>a+b,0));out[out.length-1]=r2(out[out.length-1]+d)}return out}
 function ticketText(v,pago){
   const R=ticketModel(v,pago).filter(r=>r.t!=='logo'),o=[];
   R.forEach(r=>{if(r.t==='cb')o.push(`*${r.text}*`);else if(r.t==='c')o.push(r.big?`*${r.text}*`:r.text);else if(r.t==='hr')o.push('--------------------------');else if(r.t==='kv')o.push(r.big?`*${r.a}: ${r.b}*`:`${r.a}: ${r.b}`);else if(r.t==='l')o.push(r.text);else if(r.t==='item')o.push(`${r.name}\n   ${r.det} = ${r.imp}`)});
@@ -614,22 +613,23 @@ async function startPayment(){
   const cf=cfg(),edit=cart.venta_id&&get('ventas',cart.venta_id),prev=edit?pagadoDe(edit.id):0,due=r2(c.base-prev);
   if(due<=0.004&&edit){const r=commitSale({pendiente:true,cerrar:true});afterSale(r,false);return}
   const pay={metodo:'efectivo',recibido:'',pct:cf.recargo_tarjeta,ref:'',inicial:'',metIni:'efectivo'};
-  const m=modal(`${mhead('Cobrar')}<div class="card flat c"><div class="mut sm">${edit?'Saldo por cobrar':'Total a cobrar'}</div><div class="num b" style="font-size:34px">${money(due)}</div>${prev?`<div class="xs mut">Total ${money(c.base)} · ya pagado ${money(prev)}</div>`:''}</div>
+  const m=modal(`${mhead('Cobrar')}<div class="card flat c"><div class="mut sm">${edit?'Saldo por cobrar':'Total a cobrar'}</div><div class="num b" style="font-size:34px" id="duebig">${money(due)}</div>${prev?`<div class="xs mut">Total ${money(c.base)} · ya pagado ${money(prev)}</div>`:''}</div>
   <div class="seg fill" style="grid-template-columns:repeat(4,1fr)">${Object.entries(METODOS).map(([k,v])=>`<button data-do="met" data-k="${k}" class="${k==='efectivo'?'on':''}">${v}</button>`).join('')}</div>
   <div id="payarea" class="list"></div>
   <div class="mf"><button class="btn" data-close>Cancelar</button><button class="btn pri lg" data-do="ok" id="payok">Confirmar</button></div>`,{sticky:true});
   const area=m.q('#payarea');
+  const tlines=cobrar=>{if(edit||!c.lines.length||c.subtotal<=0)return'';const subC=r2(c.subtotal*(due>0?cobrar/due:1)),imps=cardScale(c.lines.map(l=>l.importe),subC);return c.lines.map((l,i)=>`<div class="tl"><span class="ell" style="flex:1">${esc(l.p.nombre)}<span class="xs mut"> · ${qf(l.it.qty)} x ${money(+l.it.qty?imps[i]/l.it.qty:l.precio)}</span></span><b class="num">${money(imps[i])}</b></div>`).join('')};
   const calc=()=>{const pct=num(pay.pct),rec=pay.metodo==='tarjeta'?r2(due*pct/100):0;return{rec,cobrar:r2(due+rec),cambio:Math.max(0,r2(num(pay.recibido)-due))}};
-  const upd=()=>{const k=calc(),ok=m.q('#payok');
+  const upd=()=>{const k=calc(),ok=m.q('#payok');const bg=m.q('#duebig');if(bg)bg.textContent=money(pay.metodo==='tarjeta'?k.cobrar:due);
     if(pay.metodo==='efectivo'){const r=m.q('#cam');if(r)r.textContent=money(k.cambio);const f=m.q('#fal');if(f)f.textContent=num(pay.recibido)>0&&num(pay.recibido)<due?'Faltan '+money(due-num(pay.recibido)):'';ok.textContent='Cobrar '+money(due);ok.disabled=false}
-    else if(pay.metodo==='tarjeta'){const r=m.q('#tcob');if(r)r.textContent=money(k.cobrar);const rr=m.q('#trec');if(rr)rr.textContent=money(k.rec);ok.textContent='Cobrar '+money(k.cobrar)+' en terminal'}
+    else if(pay.metodo==='tarjeta'){const r=m.q('#tcob');if(r)r.textContent=money(k.cobrar);const ls=m.q('#tlines');if(ls)ls.innerHTML=tlines(k.cobrar);ok.textContent='Cobrar '+money(k.cobrar)+' en terminal'}
     else if(pay.metodo==='transferencia'){ok.textContent='Confirmar transferencia '+money(due)}
     else{const ini=Math.min(num(pay.inicial),due);const r=m.q('#sal');if(r)r.textContent=money(due-ini);ok.textContent='Dejar a crédito '+money(due-ini);ok.disabled=!cart.cliente_id}};
   const draw=()=>{
     if(pay.metodo==='efectivo'){const opts=[...new Set([due,...[20,50,100,200,500,1000].filter(x=>x>=due)])].slice(0,5);
       area.innerHTML=`<div class="field"><label>Efectivo recibido</label><input id="rec" type="number" step="any" inputmode="decimal" value="${pay.recibido}" placeholder="${due}" style="font-size:24px;font-weight:800;min-height:56px"></div><div class="row wrap">${opts.map((x,i)=>`<button class="btn sm" data-do="q" data-x="${x}">${i===0?'Exacto':money(x)}</button>`).join('')}</div><div class="card flat tl"><span class="b">Cambio</span><span class="num b" style="font-size:30px;color:var(--pri)" id="cam">$0.00</span></div><div class="xs" style="color:var(--bad)" id="fal"></div>`;
       const r=m.q('#rec');r.oninput=()=>{pay.recibido=r.value;upd()};r.onkeydown=e=>{if(e.key==='Enter')m.do.ok()};setTimeout(()=>r.focus(),40)}
-    else if(pay.metodo==='tarjeta'){area.innerHTML=`<div class="field"><label>Recargo por pago con tarjeta (%)</label><input id="pct" type="number" step="any" inputmode="decimal" value="${pay.pct}"></div><div class="card flat"><div class="tl"><span>Venta</span><b class="num">${money(due)}</b></div><div class="tl"><span>Recargo</span><b class="num" id="trec">$0.00</b></div><div class="tl big"><span>Cobrar en terminal</span><span class="num" id="tcob"></span></div></div>`;m.q('#pct').oninput=e=>{pay.pct=e.target.value;upd()}}
+    else if(pay.metodo==='tarjeta'){area.innerHTML=`<div class="field"><label>Comisión de tarjeta incluida en el precio (%)</label><input id="pct" type="number" step="any" inputmode="decimal" value="${pay.pct}"></div><div class="card flat"><div class="xs mut" style="margin-bottom:4px">Precios con tarjeta</div><div id="tlines" class="list" style="gap:4px;max-height:28dvh;overflow:auto"></div><div class="tl big" style="margin-top:6px"><span>Cobrar en terminal</span><span class="num" id="tcob"></span></div></div>`;m.q('#pct').oninput=e=>{pay.pct=e.target.value;upd()}}
     else if(pay.metodo==='transferencia'){area.innerHTML=`<div class="field"><label>Referencia / clave de rastreo (opcional)</label><input id="ref" value="${esc(pay.ref)}" placeholder="Ej. últimos dígitos o banco"></div>`;m.q('#ref').oninput=e=>pay.ref=e.target.value}
     else{const cl=cart.cliente_id&&get('clientes',cart.cliente_id);
       area.innerHTML=cl?`<div class="row">${avatar(cl)}<div class="sp"><div class="b">${esc(cl.nombre)}</div><div class="xs mut">Debe hoy ${money(saldoCliente(cl.id))}${+cl.limite_credito?' · límite '+money(cl.limite_credito):''}</div></div></div><div class="fgrid"><div class="field"><label>Pago inicial / enganche (opcional)</label><input id="ini" type="number" step="any" inputmode="decimal" value="${pay.inicial}" placeholder="0"></div><div class="field"><label>Método del pago inicial</label><select id="mi"><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="transferencia">Transferencia</option></select></div></div><div class="card flat tl"><span class="b">Queda a deber</span><span class="num b" style="font-size:24px" id="sal"></span></div>`
